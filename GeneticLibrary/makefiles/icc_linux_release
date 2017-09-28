@@ -1,0 +1,68 @@
+
+LIBS :=
+
+CPP_SRCS := \
+../source/Algorithm.cpp \
+../source/BinaryChromosome.cpp \
+../source/Chromosome.cpp \
+../source/CouplingOperations.cpp \
+../source/CrossoverOperations.cpp \
+../source/IncrementalAlgorithm.cpp \
+../source/Initialization.cpp \
+../source/MultithreadingAlgorithm.cpp \
+../source/MutationOperations.cpp \
+../source/Observing.cpp \
+../source/Population.cpp \
+../source/PopulationOperations.cpp \
+../source/Random.cpp \
+../source/ReplacementOperations.cpp \
+../source/ScalingOperations.cpp \
+../source/SelectionOperations.cpp \
+../source/SimpleAlgorithm.cpp \
+../source/Statistics.cpp \
+../source/StopCriterias.cpp \
+../source/Threading.cpp 
+
+OBJS := \
+./objs/Algorithm.o \
+./objs/BinaryChromosome.o \
+./objs/Chromosome.o \
+./objs/CouplingOperations.o \
+./objs/CrossoverOperations.o \
+./objs/IncrementalAlgorithm.o \
+./objs/Initialization.o \
+./objs/MultithreadingAlgorithm.o \
+./objs/MutationOperations.o \
+./objs/Observing.o \
+./objs/Population.o \
+./objs/PopulationOperations.o \
+./objs/Random.o \
+./objs/ReplacementOperations.o \
+./objs/ScalingOperations.o \
+./objs/SelectionOperations.o \
+./objs/SimpleAlgorithm.o \
+./objs/Statistics.o \
+./objs/StopCriterias.o \
+./objs/Threading.o  
+
+objs/%.o: ../source/%.cpp
+	@echo 'Building file: $<'
+	@echo 'Invoking C++ Compiler'
+	icpc -DGENETICLIBRARY_EXPORTS -O3 -c -fmessage-length=0 -o"$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+all: libGeneticLibrary.a
+
+libGeneticLibrary.a: $(OBJS) $(USER_OBJS)
+	@echo 'Linking Library'
+	ar -r "../build/release/icc_linux/libGeneticLibrary.a" $(OBJS) $(LIBS)
+	@echo 'Finished building target: $@'
+	@echo ' '
+
+clean:
+	-rm -rf $(OBJS)$(ARCHIVES) "../build/release/icc_linux/libGeneticLibrary.a"
+	-@echo ' '
+
+.PHONY: all clean dependents
+.SECONDARY:
