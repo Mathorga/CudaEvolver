@@ -33,10 +33,27 @@ void worstCaseInitializer(GAGenome &g) {
     }
 }
 
-void myEvaluator(GAPopulation &p){
+__global__ void cudaHello() {
+    printf("hello, I am thread (%d-%d-%d) of block (%d-%d-%d)\n", threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
+}
+
+void testEvaluator(GAPopulation &p) {
+    cudaHello<<<10, 100>>>();
+    cudaDeviceSynchronize();
+
     for (int i = 0; i < p.size(); i++) {
         p.individual(i).evaluate();
     }
+}
+
+
+__global__ void evaluate(GAPopulation &pop) {
+    // pop.individual(threadIdx.x).evaluate();
+}
+
+void cudaEvaluator(GAPopulation &p) {
+    dim3 blockSize(p.size());
+    evaluate<<<1, blockSize>>>(p);
 }
 
 int main(int argc, char const *argv[]) {
@@ -46,11 +63,11 @@ int main(int argc, char const *argv[]) {
 
     // Create a population.
     GAPopulation population(genome, POP_SIZE);
-    population.evaluator(myEvaluator);
+    population.evaluator(testEvaluator);
 
     // Create the genetic algorithm.
     GASimpleGA ga(population);
-    ga.nGenerations(354);
+    ga.nGenerations(100000);
     ga.pMutation(0.001);
 
     ga.initialize();
@@ -93,10 +110,11 @@ int main(int argc, char const *argv[]) {
         for (int i = 0; i < currentBest.length(); i++) {
             printf("%d", currentBest.gene(i));
         }
-        printf("\tfitness: %2f", tmpPop.max());
+        printf("\tfitness: %f", tmpPop.max());
         printf("\n\n");
 
-        std::cout << ga.statistics() << std::endl;
+        // Print statistics.
+        // std::cout << ga.statistics() << std::endl;
     }
     return 0;
 }
