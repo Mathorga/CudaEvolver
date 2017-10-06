@@ -4,7 +4,13 @@
 #include <ga/ga.h>
 
 #define POP_SIZE 10
+#define GEN_NUMBER 100
+#define MUT_PROBABILITY 0.001
 
+
+// |-----------------------------------------------------------------------------------------|
+// Fitness function test.
+// |-----------------------------------------------------------------------------------------|
 float fitness(GAGenome &g) {
     GA1DBinaryStringGenome &genome = (GA1DBinaryStringGenome &)g;
 
@@ -16,7 +22,31 @@ float fitness(GAGenome &g) {
     }
     return score;
 }
+// |-----------------------------------------------------------------------------------------|
 
+
+
+// |-----------------------------------------------------------------------------------------|
+// CUDA fitness function test.
+// |-----------------------------------------------------------------------------------------|
+__device__ float CUDAFitness(CUDAGAGenome &g) {
+    GA1DBinaryStringGenome &genome = (GA1DBinaryStringGenome &)g;
+
+    float score=0.0;
+    for (int i = 0; i < genome.length(); i++) {
+        // The more 1s are contained in the string, the higher is the fitness.
+        // The score is incremented by the value of the current element of the string (0 or 1).
+        score += genome.gene(i);
+    }
+    return score;
+}
+// |-----------------------------------------------------------------------------------------|
+
+
+
+// |-----------------------------------------------------------------------------------------|
+// Initializers.
+// |-----------------------------------------------------------------------------------------|
 void randomInitializer(GAGenome &g) {
     GA1DBinaryStringGenome &genome=(GA1DBinaryStringGenome &)g;
 
@@ -32,30 +62,53 @@ void worstCaseInitializer(GAGenome &g) {
         genome.gene(i, 0);
     }
 }
+// |-----------------------------------------------------------------------------------------|
 
+
+
+// |-----------------------------------------------------------------------------------------|
+// CUDA useless population evaluator.
+// |-----------------------------------------------------------------------------------------|
 __global__ void cudaHello() {
     printf("hello, I am thread (%d-%d-%d) of block (%d-%d-%d)\n", threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
 }
 
 void testEvaluator(GAPopulation &p) {
-    cudaHello<<<10, 100>>>();
+    dim3 blockSize(p.size());
+    cudaHello<<<1, blockSize>>>();
     cudaDeviceSynchronize();
 
     for (int i = 0; i < p.size(); i++) {
         p.individual(i).evaluate();
     }
 }
+// |-----------------------------------------------------------------------------------------|
 
 
+
+// |-----------------------------------------------------------------------------------------|
+// CUDA population evaluator.
+// |-----------------------------------------------------------------------------------------|
 __global__ void evaluate(GAPopulation &pop) {
     // pop.individual(threadIdx.x).evaluate();
 }
 
 void cudaEvaluator(GAPopulation &p) {
     dim3 blockSize(p.size());
+
+    // TODO Allocate device memory for the population and copy it on the device memory.
+    cudaMalloc();
+    cudaMemcpy();
+
     evaluate<<<1, blockSize>>>(p);
 }
+// |-----------------------------------------------------------------------------------------|
 
+
+
+// |-----------------------------------------------------------------------------------------|
+// Main.
+// |-----------------------------------------------------------------------------------------|
 int main(int argc, char const *argv[]) {
     // Create a genome.
     GA1DBinaryStringGenome genome(20, fitness);
@@ -67,8 +120,8 @@ int main(int argc, char const *argv[]) {
 
     // Create the genetic algorithm.
     GASimpleGA ga(population);
-    ga.nGenerations(100000);
-    ga.pMutation(0.001);
+    ga.nGenerations(GEN_NUMBER);
+    ga.pMutation(MUT_PROBABILITY);
 
     ga.initialize();
 
@@ -118,3 +171,4 @@ int main(int argc, char const *argv[]) {
     }
     return 0;
 }
+// |-----------------------------------------------------------------------------------------|
