@@ -13,7 +13,7 @@ BIN_DIR		=./bin
 
 RM			=rm -rf
 
-all: test CUDATest
+all: PathTest
 
 .cpp.o:
 	$(CCOMP) $(CCOMP_FLAGS) -c $<
@@ -21,10 +21,16 @@ all: test CUDATest
 CUDATest.o:
 	$(NVCOMP) $(NVCOMP_FLAGS) -c CUDATest.cu
 
+PathTest.o:
+	$(NVCOMP) $(NVCOMP_FLAGS) -c PathTest.cu
+
 test: test.o
 	$(CCOMP) $@.o -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(CCOMP_LIBS)
 
 CUDATest: CUDATest.o
+	$(NVCOMP) $@.o -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
+
+PathTest: PathTest.o
 	$(NVCOMP) $@.o -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
 
 clean:

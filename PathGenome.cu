@@ -1,12 +1,14 @@
 #include <PathGenome.h>
 
-void PathGenome::randomInitializer() {
-
+void PathGenome::randomInitializer(GAGenome &genome) {
+    for (int i = 0; i < this->checksNum; i++) {
+        this->gene(i, );
+    }
 }
 
-PathGenome::PathGenome(int checksNum) {
+PathGenome::PathGenome(unsigned int checksNum) {
     this->checksNum = checksNum;
-    this->path = (2DDot *)malloc(checksNum * sizeof(2DDot));
+    this->path = (_2DDot *)malloc(checksNum * sizeof(2DDot));
 }
 
 PathGenome::PathGenome(const PathGenome &orig) {
