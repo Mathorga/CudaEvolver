@@ -27,24 +27,6 @@ float fitness(GAGenome &g) {
 
 
 // |-----------------------------------------------------------------------------------------|
-// CUDA fitness function test.
-// |-----------------------------------------------------------------------------------------|
-float CUDAFitness(GAGenome &g) {
-    GA1DBinaryStringGenome &genome = (GA1DBinaryStringGenome &)g;
-
-    float score=0.0;
-    for (int i = 0; i < genome.length(); i++) {
-        // The more 1s are contained in the string, the higher is the fitness.
-        // The score is incremented by the value of the current element of the string (0 or 1).
-        score += genome.gene(i);
-    }
-    return score;
-}
-// |-----------------------------------------------------------------------------------------|
-
-
-
-// |-----------------------------------------------------------------------------------------|
 // Initializers.
 // |-----------------------------------------------------------------------------------------|
 void randomInitializer(GAGenome &g) {
@@ -63,27 +45,6 @@ void worstCaseInitializer(GAGenome &g) {
     }
 }
 // |-----------------------------------------------------------------------------------------|
-
-
-
-// |-----------------------------------------------------------------------------------------|
-// CUDA useless population evaluator.
-// |-----------------------------------------------------------------------------------------|
-__global__ void cudaHello() {
-    printf("hello, I am thread (%d-%d-%d) of block (%d-%d-%d)\n", threadIdx.x, threadIdx.y, threadIdx.z, blockIdx.x, blockIdx.y, blockIdx.z);
-}
-
-void testEvaluator(GAPopulation &p) {
-    // dim3 blockSize(p.size(), 10);
-    // cudaHello<<<1, blockSize>>>();
-    // cudaDeviceSynchronize();
-
-    for (int i = 0; i < p.size(); i++) {
-        p.individual(i).evaluate();
-    }
-}
-// |-----------------------------------------------------------------------------------------|
-
 
 
 // |-----------------------------------------------------------------------------------------|
