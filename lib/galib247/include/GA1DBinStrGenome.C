@@ -27,13 +27,13 @@
 // this point - initialization must be done explicitly by the user of the
 // genome (eg when the population is created or reset).  If we called the
 // initializer routine here then we could end up with multiple initializations
-// and/or calls to dummy initializers (for example when the genome is 
+// and/or calls to dummy initializers (for example when the genome is
 // created with a dummy initializer and the initializer is assigned later on).
 GA1DBinaryStringGenome::
-GA1DBinaryStringGenome(unsigned int len, 
+GA1DBinaryStringGenome(unsigned int len,
 		       GAGenome::Evaluator f, void * u) :
 GABinaryString(len),
-GAGenome(DEFAULT_1DBINSTR_INITIALIZER, 
+GAGenome(DEFAULT_1DBINSTR_INITIALIZER,
 	 DEFAULT_1DBINSTR_MUTATOR,
 	 DEFAULT_1DBINSTR_COMPARATOR) {
   evaluator(f);
@@ -60,7 +60,7 @@ GA1DBinaryStringGenome::~GA1DBinaryStringGenome() {
 
 
 // The clone member creates a duplicate (exact or just attributes, depending
-// on the flag).  The caller is responsible for freeing the memory that is 
+// on the flag).  The caller is responsible for freeing the memory that is
 // allocated by this method.
 GAGenome*
 GA1DBinaryStringGenome::clone(GAGenome::CloneMethod flag) const {
@@ -81,7 +81,7 @@ GA1DBinaryStringGenome::clone(GAGenome::CloneMethod flag) const {
 // what we define here - a virtual function).  We should check to be sure that
 // both genomes are the same class and same dimension.  This function tries
 // to be smart about they way it copies.  If we already have data, then we do
-// a memcpy of the one we're supposed to copy.  If we don't or we're not the 
+// a memcpy of the one we're supposed to copy.  If we don't or we're not the
 // same size as the one we're supposed to copy, then we adjust ourselves.
 //   The BinaryStringGenome takes care of the resize in its copy method.
 // It also copies the bitstring for us.
@@ -89,7 +89,7 @@ void
 GA1DBinaryStringGenome::copy(const GAGenome & orig)
 {
   if(&orig == this) return;
-  const GA1DBinaryStringGenome* c = 
+  const GA1DBinaryStringGenome* c =
     DYN_CAST(const GA1DBinaryStringGenome*, &orig);
   if(c) {
     GAGenome::copy(*c);
@@ -173,7 +173,7 @@ GA1DBinaryStringGenome::write(STD_OSTREAM & os) const
 //   Set the resize behaviour of the genome.  A genome can be fixed
 // length, resizeable with a max and min limit, or resizeable with no limits
 // (other than an implicit one that we use internally).
-//   A value of 0 means no resize, a value less than zero mean unlimited 
+//   A value of 0 means no resize, a value less than zero mean unlimited
 // resize, and a positive value means resize with that value as the limit.
 //   We return the upper limit of the genome's size.
 int
@@ -190,21 +190,21 @@ resizeBehaviour(unsigned int lower, unsigned int upper)
   return resizeBehaviour();
 }
 
-int 
+int
 GA1DBinaryStringGenome::resizeBehaviour() const {
   int val = maxX;
   if(maxX == minX) val = FIXED_SIZE;
   return val;
 }
 
-int 
+int
 GA1DBinaryStringGenome::
 equal(const GA1DBinaryStringGenome& c,
       unsigned int dest, unsigned int src, unsigned int len) const {
   return GABinaryString::equal(c,dest,src,len);
 }
 
-int 
+int
 GA1DBinaryStringGenome::equal(const GAGenome & c) const {
   if(this == &c) return 1;
   const GA1DBinaryStringGenome* b = DYN_CAST(const GA1DBinaryStringGenome*,&c);
@@ -231,7 +231,7 @@ GA1DBinaryStringGenome::equal(const GAGenome & c) const {
 // random bit function so we don't have to worry about machine-specific stuff.
 //   We also do a resize so the genome can resize itself (randomly) if it
 // is a resizeable genome.
-void 
+void
 GA1DBinaryStringGenome::UniformInitializer(GAGenome & c)
 {
   GA1DBinaryStringGenome &child=DYN_CAST(GA1DBinaryStringGenome &, c);
@@ -242,7 +242,7 @@ GA1DBinaryStringGenome::UniformInitializer(GAGenome & c)
 
 
 //   Unset all of the bits in the genome.
-void 
+void
 GA1DBinaryStringGenome::UnsetInitializer(GAGenome & c)
 {
   GA1DBinaryStringGenome &child=DYN_CAST(GA1DBinaryStringGenome &, c);
@@ -252,7 +252,7 @@ GA1DBinaryStringGenome::UnsetInitializer(GAGenome & c)
 
 
 //   Set all of the bits in the genome.
-void 
+void
 GA1DBinaryStringGenome::SetInitializer(GAGenome & c)
 {
   GA1DBinaryStringGenome &child=DYN_CAST(GA1DBinaryStringGenome &, c);
@@ -271,7 +271,7 @@ GA1DBinaryStringGenome::SetInitializer(GAGenome & c)
 // better the chance that it will match the desired mutation rate.
 //   If nMut is greater than 1, then we round up, so a mutation of 2.2 would
 // be 3 mutations, and 2.9 would be 3 as well.  nMut of 3 would be 3 mutations.
-int 
+int
 GA1DBinaryStringGenome::FlipMutator(GAGenome & c, float pmut)
 {
   GA1DBinaryStringGenome &child=DYN_CAST(GA1DBinaryStringGenome &, c);
@@ -298,10 +298,10 @@ GA1DBinaryStringGenome::FlipMutator(GAGenome & c, float pmut)
 }
 
 
-// Return a number from 0 to 1 to indicate how similar two genomes are.  For 
+// Return a number from 0 to 1 to indicate how similar two genomes are.  For
 // the binary strings we compare bits.  We count the number of bits that are
 // the same then divide by the number of bits.  If the genomes are different
-// length then we return a -1 to indicate that we cannot calculate the 
+// length then we return a -1 to indicate that we cannot calculate the
 // similarity.
 //   Normal hamming distance makes use of population information - this is not
 // a hamming measure!  This is a similarity measure of two individuals, not
@@ -334,7 +334,7 @@ GA1DBinaryStringGenome::BitComparator(const GAGenome& a, const GAGenome& b){
 
 
 // Randomly take bits from each parent.  For each bit we flip a coin to see if
-// that bit should come from the mother or the father.  This operator can be 
+// that bit should come from the mother or the father.  This operator can be
 // used on genomes of different lengths, but the crossover is truncated to the
 // shorter of the parents and child.
 int
@@ -385,8 +385,8 @@ UniformCrossover(const GAGenome& p1, const GAGenome& p2,
     n = 2;
   }
   else if(c1 || c2){
-    GA1DBinaryStringGenome &sis = (c1 ? 
-				   DYN_CAST(GA1DBinaryStringGenome&, *c1) : 
+    GA1DBinaryStringGenome &sis = (c1 ?
+				   DYN_CAST(GA1DBinaryStringGenome&, *c1) :
 				   DYN_CAST(GA1DBinaryStringGenome&, *c2));
 
     if(mom.length() == dad.length() && sis.length() == mom.length()){
@@ -434,7 +434,7 @@ OnePointCrossover(const GAGenome& p1, const GAGenome& p2,
 
     if(sis.resizeBehaviour() == GAGenome::FIXED_SIZE &&
        bro.resizeBehaviour() == GAGenome::FIXED_SIZE){
-      if(mom.length() != dad.length() || 
+      if(mom.length() != dad.length() ||
 	 sis.length() != bro.length() ||
 	 sis.length() != mom.length()){
 	GAErr(GA_LOC, mom.className(), "one-point cross", gaErrSameLengthReqd);
@@ -461,12 +461,12 @@ OnePointCrossover(const GAGenome& p1, const GAGenome& p2,
     sis.copy(dad, momsite, dadsite, dadlen);
     bro.copy(dad, 0, 0, dadsite);
     bro.copy(mom, dadsite, momsite, momlen);
-  
+
     n = 2;
   }
   else if(c1 || c2){
-    GA1DBinaryStringGenome &sis = (c1 ? 
-				   DYN_CAST(GA1DBinaryStringGenome&, *c1) : 
+    GA1DBinaryStringGenome &sis = (c1 ?
+				   DYN_CAST(GA1DBinaryStringGenome&, *c1) :
 				   DYN_CAST(GA1DBinaryStringGenome&, *c2));
 
     if(sis.resizeBehaviour() == GAGenome::FIXED_SIZE){
@@ -530,7 +530,7 @@ TwoPointCrossover(const GAGenome& p1, const GAGenome& p2,
 
     if(sis.resizeBehaviour() == GAGenome::FIXED_SIZE &&
        bro.resizeBehaviour() == GAGenome::FIXED_SIZE){
-      if(mom.length() != dad.length() || 
+      if(mom.length() != dad.length() ||
 	 sis.length() != bro.length() ||
 	 sis.length() != mom.length()){
 	GAErr(GA_LOC, mom.className(), "two-point cross", gaErrSameLengthReqd);
@@ -558,7 +558,7 @@ TwoPointCrossover(const GAGenome& p1, const GAGenome& p2,
       if(momsite[0] > momsite[1]) SWAP(momsite[0], momsite[1]);
       momlen[0] = momsite[1] - momsite[0];
       momlen[1] = mom.length() - momsite[1];
-      
+
       dadsite[0] = GARandomInt(0, dad.length());
       dadsite[1] = GARandomInt(0, dad.length());
       if(dadsite[0] > dadsite[1]) SWAP(dadsite[0], dadsite[1]);
@@ -579,8 +579,8 @@ TwoPointCrossover(const GAGenome& p1, const GAGenome& p2,
     n = 2;
   }
   else if(c1 || c2){
-    GA1DBinaryStringGenome &sis = (c1 ? 
-				   DYN_CAST(GA1DBinaryStringGenome&, *c1) : 
+    GA1DBinaryStringGenome &sis = (c1 ?
+				   DYN_CAST(GA1DBinaryStringGenome&, *c1) :
 				   DYN_CAST(GA1DBinaryStringGenome&, *c2));
 
     if(sis.resizeBehaviour() == GAGenome::FIXED_SIZE){
@@ -605,7 +605,7 @@ TwoPointCrossover(const GAGenome& p1, const GAGenome& p2,
       if(momsite[0] > momsite[1]) SWAP(momsite[0], momsite[1]);
       momlen[0] = momsite[1] - momsite[0];
       momlen[1] = mom.length() - momsite[1];
-      
+
       dadsite[0] = GARandomInt(0, dad.length());
       dadsite[1] = GARandomInt(0, dad.length());
       if(dadsite[0] > dadsite[1]) SWAP(dadsite[0], dadsite[1]);
@@ -639,10 +639,10 @@ TwoPointCrossover(const GAGenome& p1, const GAGenome& p2,
 //   Even and odd crossovers take alternating bits from the mother and father.
 // For even crossover, we take every even bit from the mother and every odd bit
 // from the father (the first bit is the 0th bit, so it is even).  Odd
-// crossover is just the opposite.  
+// crossover is just the opposite.
 int
 GA1DBinaryStringGenome::
-EvenOddCrossover(const GAGenome& p1, const GAGenome& p2, 
+EvenOddCrossover(const GAGenome& p1, const GAGenome& p2,
 		 GAGenome* c1, GAGenome* c2){
   const GA1DBinaryStringGenome &mom=
     DYN_CAST(const GA1DBinaryStringGenome &, p1);
@@ -685,7 +685,7 @@ EvenOddCrossover(const GAGenome& p1, const GAGenome& p2,
   }
   else if(c1 || c2){
     GA1DBinaryStringGenome &sis = (c1 ?
-				   DYN_CAST(GA1DBinaryStringGenome&, *c1) : 
+				   DYN_CAST(GA1DBinaryStringGenome&, *c1) :
 				   DYN_CAST(GA1DBinaryStringGenome&, *c2));
 
     if(mom.length() == dad.length() && sis.length() == mom.length()){

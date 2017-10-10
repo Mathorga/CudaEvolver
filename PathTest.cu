@@ -12,7 +12,7 @@
 
 #define POP_SIZE 10
 #define GEN_NUMBER 100
-#define MUT_PROBABILITY 0.001
+#define MUT_RATE 0.001
 
 #define FIELD_SIZE 512
 #define CHECKS_NUMBER 10
@@ -37,7 +37,9 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
     int err = (dx > dy ? dx : -dy) / 2, e2;
 
     for(;;){
-        field[IDX(x, y, n)] = PATH;
+        if (!(x == x0 && y == y0) && !(x == x1 && y == y1)) {
+            field[IDX(x, y, n)] = PATH;
+        }
         if (x == x1 && y == y1) {
             break;
         }
@@ -53,13 +55,19 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
     }
 }
 
-void dump(cell_t *field, const PathGenome::_2DDot *checks, int n, const char *filename) {
-    int i;
-    int j;
+void dump(const cell_t *field, const PathGenome::_2DDot *path, int n, const char *filename) {
 
-    // drawLine(field, n, 100, 100, 1, 1);
-    for (int i = 0; i < CHECKS_NUMBER; i++) {
-        drawLine(field, n, checks[i].x, checks[i].y, checks[(i + 1) % CHECKS_NUMBER].x, checks[(i + 1) % CHECKS_NUMBER].y);
+    cell_t *fieldCopy = (cell_t *) malloc(n * n * sizeof(cell_t));
+    for (int x = 0; x < n; x++) {
+        for (int y = 0; y < n; y++) {
+            fieldCopy[IDX(x, y, n)] = field[IDX(x, y, n)];
+        }
+    }
+
+    if (path != NULL) {
+        for (int i = 0; i < CHECKS_NUMBER; i++) {
+            drawLine(fieldCopy, n, path[i].x, path[i].y, path[(i + 1) % CHECKS_NUMBER].x, path[(i + 1) % CHECKS_NUMBER].y);
+        }
     }
     FILE *out = fopen(filename, "w");
     if (out == NULL) {
@@ -69,16 +77,25 @@ void dump(cell_t *field, const PathGenome::_2DDot *checks, int n, const char *fi
     fprintf(out, "P6\n");
     fprintf(out, "%d %d\n", n, n);
     fprintf(out, "255\n");
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n; j++) {
-            if (field[IDX(i, j, n)] == CHECK) {
-                fprintf(out, "%c%c%c", 0, 0, 0);
-            } else if (field[IDX(i, j, n)] == EMPTY) {
-                fprintf(out, "%c%c%c", 255, 255, 255);
-            } else if (field[IDX(i, j, n)] == PATH) {
-                fprintf(out, "%c%c%c", 255, 0, 0);
+    for (int x = 0; x < n; x++) {
+        for (int y = 0; y < n; y++) {
+            if (fieldCopy[IDX((x + 1) % n, y, n)] == CHECK ||
+                fieldCopy[IDX(x, (y + 1) % n, n)] == CHECK ||
+                fieldCopy[IDX((x + 1) % n, (y + 1) % n, n)] == CHECK ||
+                fieldCopy[IDX((x - 1 + n) % n, y, n)] == CHECK ||
+                fieldCopy[IDX(x, (y - 1 + n) % n, n)] == CHECK ||
+                fieldCopy[IDX((x - 1 + n) % n, (y - 1 + n) % n, n)] == CHECK ||
+                fieldCopy[IDX((x + 1) %n, (y - 1 + n) % n, n)] == CHECK ||
+                fieldCopy[IDX((x - 1 + n) %n, (y + 1) % n, n)] == CHECK) {
+                fprintf(out, "%c%c%c", 255, 30, 30);
+            } else if (fieldCopy[IDX(x, y, n)] == CHECK) {
+                fprintf(out, "%c%c%c", 20, 20, 0);
+            } else if (fieldCopy[IDX(x, y, n)] == EMPTY) {
+                fprintf(out, "%c%c%c", 20, 20, 20);
+            } else if (fieldCopy[IDX(x, y, n)] == PATH) {
+                fprintf(out, "%c%c%c", 250, 175, 53);
             } else {
-                printf("Unknown cell state (%d) of cell %d-%d", field[IDX(i, j, n)], i, j);
+                printf("Unknown cell state (%d) of cell %d-%d", fieldCopy[IDX(x, y, n)], x, y);
                 abort();
             }
         }
@@ -163,19 +180,60 @@ int main(int argc, char const *argv[]) {
 
     srand(time(NULL));
     for (int i = 0; i < CHECKS_NUMBER; i++) {
-        checks[i].x = (int) (rand() % FIELD_SIZE);
-        checks[i].y = (int) (rand() % FIELD_SIZE);
+        checks[i].x = (rand() % FIELD_SIZE);
+        checks[i].y = (rand() % FIELD_SIZE);
+        checks[i].id = i;
         field[IDX(checks[i].x, checks[i].y, FIELD_SIZE)] = true;
     }
 
-    dump(field, checks, FIELD_SIZE, "field.ppm");
+    dump(field, NULL, FIELD_SIZE, "field.ppm");
 
+    std::cout << "Original checks:\n";
+    for (int i = 0; i < CHECKS_NUMBER; i++) {
+        std::cout << "x:" << checks[i].x << "\ty:" << checks[i].y << "\n";
+    }
 
     // Create a genome.
-    // PathGenome genome();
-    //
-    // genome.initializer(randomInitializer);
-    //
+    PathGenome genome(CHECKS_NUMBER, checks);
+    std::cout << "genome after creation:\n" << genome << std::endl;
+
+    genome.initialize();
+    std::cout << "genome after initialization:\n" << genome << std::endl;
+
+    dump(field, genome.getPath(), FIELD_SIZE, "path.ppm");
+
+    genome.mutate(MUT_RATE);
+    std::cout << "genome after mutation:\n" << genome << std::endl;
+
+    dump(field, genome.getPath(), FIELD_SIZE, "pathMutated.ppm");
+
+
+    PathGenome genome2(CHECKS_NUMBER, checks);
+    std::cout << "genome2 after creation:\n" << genome2 << std::endl;
+
+    genome.initialize();
+    std::cout << "genome2 after initialization:\n" << genome << std::endl;
+
+    PathGenome *c1 = new PathGenome(CHECKS_NUMBER);
+    PathGenome *c2 = new PathGenome(CHECKS_NUMBER);
+    PathGenome::onePointCrossover(genome, genome2, c1, NULL);
+
+    std::cout << "child:\n" << *c1 << std::endl;
+
+    // for (int i = 0; i < 1000; i++) {
+    //     genome.mutate(MUT_RATE);
+    //     char fileName[200];
+    //     snprintf(fileName, 200, "pathMut%d.ppm", i);
+    //     dump(field, genome.getPath(), FIELD_SIZE, fileName);
+    // }
+
+    // for (int i = 0; i < 100; i++) {
+    //     genome.initialize();
+    //     char fileName[200];
+    //     snprintf(fileName, 200, "path%d.ppm", i);
+    //     dump(field, genome.getPath(), FIELD_SIZE, fileName);
+    // }
+
     // // Create a population.
     // GAPopulation population(genome);
     // population.evaluator(cudaEvaluator);
@@ -183,7 +241,7 @@ int main(int argc, char const *argv[]) {
     // // Create the genetic algorithm.
     // GASimpleGA ga(population);
     // ga.nGenerations(GEN_NUMBER);
-    // ga.pMutation(MUT_PROBABILITY);
+    // ga.pMutation(MUT_RATE);
     //
     // ga.initialize();
     //
@@ -231,6 +289,8 @@ int main(int argc, char const *argv[]) {
     //     // Print statistics.
     //     // std::cout << ga.statistics() << std::endl;
     // }
+
+    // delete a;
     return 0;
 }
 // |-----------------------------------------------------------------------------------------|
