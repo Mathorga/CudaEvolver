@@ -31,8 +31,8 @@ track of the fitness statistics for the genomes in the population.
 /* ----------------------------------------------------------------------------
 size
   Use the size member function to get and set the size of the population.  The
-population allocates space for genomes in chunks, so you can vary the 
-chunksize as well if you are really tight for space.  The compact member 
+population allocates space for genomes in chunks, so you can vary the
+chunksize as well if you are really tight for space.  The compact member
 function will remove all extra pointers.  If you shrink the population to 0
 then you cannot use the 'size' method to make the population bigger.  When
 resizing to a larger size, we clone randomly individuals from the existing
@@ -50,11 +50,11 @@ function.  Otherwise the population will use its internal state to determine
 whether or not it needs to do the evaluation.
 
 initialize
-  This method determines how the population should be initialized.  The 
+  This method determines how the population should be initialized.  The
 default is to call the initializer for each genome.
 
 statistics
-  Update the statistics.  We do this only on-demand so that no unneeded 
+  Update the statistics.  We do this only on-demand so that no unneeded
 calculations take place.
 
 diversity
@@ -93,7 +93,7 @@ public:
   int chunksize(unsigned int csize) { return csz=csize; }
   int compact();
 
-  void touch() 
+  void touch()
     { rsorted=ssorted=selectready=divved=statted=scaled=evaluated=gaFalse; }
   void statistics(GABoolean flag=gaFalse) const;
   void diversity(GABoolean flag=gaFalse) const;
@@ -108,7 +108,7 @@ public:
   float max() const {if(!statted) statistics(); return rawMax;}
   float min() const {if(!statted) statistics(); return rawMin;}
   float div() const {if(!divved)  diversity();  return popDiv;}
-  float div(unsigned int i, unsigned int j) const 
+  float div(unsigned int i, unsigned int j) const
     {if(!divved) diversity(); return indDiv[i*n+j];}
   float fitsum() const {if(!scaled) scale(); return fitSum;}
   float fitave() const {if(!scaled) scale(); return fitAve;}
@@ -140,7 +140,7 @@ public:
   GAScalingScheme & scaling() const {
     GAPopulation* This = (GAPopulation*)this;
     This->scaled=gaFalse;
-    return *sclscm; 
+    return *sclscm;
   }
   GAScalingScheme & scaling(const GAScalingScheme&);
 
@@ -155,14 +155,14 @@ public:
   GAGenome& best(unsigned int i=0, SortBasis basis=RAW) const {
     if(basis == SCALED) scale();
     sort(gaFalse, basis);
-    return ((basis == RAW) ? *(rind[i]) : *(sind[i])); 
+    return ((basis == RAW) ? *(rind[i]) : *(sind[i]));
   }
   GAGenome& worst(unsigned int i=0, SortBasis basis=RAW) const {
     if(basis == SCALED) scale();
-    sort(gaFalse, basis); 
+    sort(gaFalse, basis);
     return ((basis == RAW) ? *(rind[n-1-i]) : *(sind[n-1-i]));
   }
-  GAGenome& individual(unsigned int i, SortBasis basis=RAW) const 
+  GAGenome& individual(unsigned int i, SortBasis basis=RAW) const
     { return ((basis == RAW) ? *(rind[i]) : *(sind[i])); }
 
   GAGenome * add(GAGenome *);

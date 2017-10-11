@@ -20,19 +20,19 @@
 
 // This is the default population initializer.  It simply calls the initializer
 // for each member of the population.  Then we touch the population to tell it
-// that it needs to update stats and/or sort (but we don't actually force 
+// that it needs to update stats and/or sort (but we don't actually force
 // either one to occur.
 //   The population object takes care of setting/unsetting the status flags.
-void 
+void
 GAPopulation::DefaultInitializer(GAPopulation & p){
   for(int i=0; i<p.size(); i++)
     p.individual(i).initialize();
 }
 
 //  The default evaluator simply calls the evaluate member of each genome in
-// the population.  The population object takes care of setting/unsetting the 
+// the population.  The population object takes care of setting/unsetting the
 // status flags for indicating when the population needs to be updated again.
-void 
+void
 GAPopulation::DefaultEvaluator(GAPopulation & p){
   for(int i=0; i<p.size(); i++)
     p.individual(i).evaluate();
@@ -48,7 +48,7 @@ GAPopulation::DefaultEvaluator(GAPopulation & p){
 
   The population class is basically just a holder for the genomes.  We also
 keep track of statistics about the fitness of our genomes.  We don't care
-what kind of genomes we get.  To create the population we call the clone 
+what kind of genomes we get.  To create the population we call the clone
 method of the genome we're given.
   By default we do not calculate the population's diversity, so we set the
 div matrix to NULL.
@@ -114,7 +114,7 @@ GAPopulation::GAPopulation(const GAPopulation & orig){
   n = N = 0;
   rind = sind = (GAGenome**)0;
   indDiv = (float*)0;
-  sclscm = (GAScalingScheme*)0; 
+  sclscm = (GAScalingScheme*)0;
   slct = (GASelectionScheme*)0;
   evaldata = (GAEvalData*)0;
   copy(orig);
@@ -132,7 +132,7 @@ GAPopulation::~GAPopulation(){
 }
 
 
-// Make a complete copy of the original population.  This is a deep copy of 
+// Make a complete copy of the original population.  This is a deep copy of
 // the population object - we clone everything in the genomes and copy all of
 // the population's information.
 void
@@ -176,12 +176,12 @@ GAPopulation::copy(const GAPopulation & arg)
   else evaldata = (GAEvalData*)0;
 
   neval = 0;			// don't copy the evaluation count!
-  rawSum = arg.rawSum; rawAve = arg.rawAve; 
+  rawSum = arg.rawSum; rawAve = arg.rawAve;
   rawMax = arg.rawMax; rawMin = arg.rawMin;
   rawVar = arg.rawVar; rawDev = arg.rawDev;
   popDiv = arg.popDiv;
 
-  fitSum = arg.fitSum; fitAve = arg.fitAve; 
+  fitSum = arg.fitSum; fitAve = arg.fitAve;
   fitMax = arg.fitMax; fitMin = arg.fitMin;
   fitVar = arg.fitVar; fitDev = arg.fitDev;
 
@@ -234,7 +234,7 @@ GAPopulation::size(unsigned int popsize){
 
   memcpy(sind, rind, N * sizeof(GAGenome*));
   ssorted = scaled = statted = divved = selectready = gaFalse;
-  n = popsize;  
+  n = popsize;
 
   if(evaluated == gaTrue) evaluate(gaTrue);
 
@@ -246,7 +246,7 @@ GAPopulation::size(unsigned int popsize){
 // population object.  Unlike the size method, this method does not allocate
 // more genomes (but it will delete genomes if the specified size is smaller
 // than the current size).
-//   This maintains the integrity of the diversity scores (but the new ones 
+//   This maintains the integrity of the diversity scores (but the new ones
 // will not have been set yet).
 //   We return the total amount allocated (not the amount used).
 int
@@ -279,7 +279,7 @@ GAPopulation::grow(unsigned int s) {
 }
 
 
-// Get rid of 'extra' memory that we have allocated.  We just trash the 
+// Get rid of 'extra' memory that we have allocated.  We just trash the
 // diversity matrix and flag it as being invalid.  Return the amount
 // allocated (which is also the amount used).
 int
@@ -320,16 +320,16 @@ GAPopulation::order(GAPopulation::SortOrder flag) {
   if(sortorder == flag) return flag;
   sortorder = flag;
   rsorted = ssorted = gaFalse;
-  return flag; 
+  return flag;
 }
 
 
-// Sort using the quicksort method.  The sort order depends on whether a high 
+// Sort using the quicksort method.  The sort order depends on whether a high
 // number means 'best' or a low number means 'best'.  Individual 0 is always
 // the 'best' individual, Individual n-1 is always the 'worst'.
 //   We may sort either array of individuals - the array sorted by raw scores
 // or the array sorted by scaled scores.
-void 
+void
 GAPopulation::sort(GABoolean flag, SortBasis basis) const {
   GAPopulation * This = (GAPopulation *)this;
   if(basis == RAW){
@@ -356,10 +356,10 @@ GAPopulation::sort(GABoolean flag, SortBasis basis) const {
 
 
 // Evaluate each member of the population and store basic population statistics
-// in the member variables.  It is OK to run this on a const object - it 
+// in the member variables.  It is OK to run this on a const object - it
 // changes to physical state of the population, but not the logical state.
 //   The partial sums are normalized to the range [0,1] so that they can be
-// used whether the population is sorted as low-is-best or high-is-best.  
+// used whether the population is sorted as low-is-best or high-is-best.
 // Individual 0 is always the best individual, and the partial sums are
 // calculated so that the worst individual has the smallest partial sum.  All
 // of the partial sums add to 1.0.
@@ -418,7 +418,7 @@ GAPopulation::scale(GABoolean flag) const {
 
     float tmpsum;
     This->fitMin = This->fitMax = tmpsum = sind[0]->fitness();
-    
+
     unsigned int i;
     for(i=1; i<n; i++){
       tmpsum += sind[i]->fitness();
@@ -522,7 +522,7 @@ GAPopulation::selector(const GASelectionScheme& s) {
 
 
 
-// Replace the specified genome with the one that is passed to us then 
+// Replace the specified genome with the one that is passed to us then
 // return the one that got replaced.  Use the replacement flags to determine
 // which genome will be replaced.  If we get a genome as the second
 // argument, then replace that one.  If we get a NULL genome, then we
@@ -536,7 +536,7 @@ GAPopulation::selector(const GASelectionScheme& s) {
 //   In both cases we flag the stats as out-of-date, but we do not update the
 // stats.  Let that happen when it needs to happen.
 //   If which is < 0 then it is a flag that tells us to do a certain kind of
-// replacement.  Anything non-negative is assumed to be an index to a 
+// replacement.  Anything non-negative is assumed to be an index to a
 // genome in the population.
 //   This does not affect the state of the evaluated member - it assumes that
 // the individual genome has a valid number for its score.
@@ -552,7 +552,7 @@ GAPopulation::replace(GAGenome * repl, int which, SortBasis basis)
     sort(gaFalse, basis);
     i = 0;
     break;
-      
+
   case WORST:
     sort(gaFalse, basis);
     i = n-1;
@@ -591,7 +591,7 @@ GAPopulation::replace(GAGenome * repl, int which, SortBasis basis)
 // No way to do incremental update of scaling info since we don't know what the
 // scaling object will do.
     scaled = gaFalse;
-// *** should do an incremental update of the diversity here so we don't 
+// *** should do an incremental update of the diversity here so we don't
 // recalculate all of the diversities when only one is updated
     divved = gaFalse;
 // selector needs update
@@ -623,9 +623,9 @@ GAPopulation::replace(GAGenome * r, GAGenome * o)
 
 
 //   Remove the xth genome from the population.  If index is out of bounds, we
-// return NULL.  Otherwise we return a pointer to the genome that was 
+// return NULL.  Otherwise we return a pointer to the genome that was
 // removed.  The population is now no longer responsible for freeing the
-// memory used by that genome.  
+// memory used by that genome.
 //   We don't touch the sorted flag for the array we modify - a remove will not
 // affect the sort order.
 GAGenome *
@@ -677,24 +677,24 @@ GAPopulation::remove(GAGenome * r)
 }
 
 
-// Add the specified individual to the population.  We don't update the stats 
+// Add the specified individual to the population.  We don't update the stats
 // or sort - let those get updated next time they are needed.
 //   Notice that it is possible to add individuals to the population that are
-// not the same type as the other genomes in the population.  Eventually we 
+// not the same type as the other genomes in the population.  Eventually we
 // probably won't allow this (or at least we'll have to fix things so that the
 // behaviour is completely defined).
 //   If you invoke the add with a genome reference, the population will make
 // a clone of the genome then it owns it from then on.  If you invoke add with
 // a genome pointer, then the population does not allocate any memory - it uses
 // the memory pointed to by the argument.  So don't trash the genome without
-// first letting the population know about the change.  
+// first letting the population know about the change.
 GAGenome*
 GAPopulation::add(const GAGenome& g)
 {
   return GAPopulation::add(g.clone());
 }
 
-// This one does *not* allocate space for the genome - it uses the one that 
+// This one does *not* allocate space for the genome - it uses the one that
 // was passed to us.  So the caller should not free it up or leave it dangling!
 // We own it from now on (unless remove is called on it), and the population
 // will destroy it when the population destructor is invoked.
@@ -714,7 +714,7 @@ GAPopulation::add(GAGenome* c)
 }
 
 
-GAGeneticAlgorithm * 
+GAGeneticAlgorithm *
 GAPopulation::geneticAlgorithm(GAGeneticAlgorithm& g){
   for(unsigned int i=0; i<n; i++)
     rind[i]->geneticAlgorithm(g);
@@ -723,7 +723,7 @@ GAPopulation::geneticAlgorithm(GAGeneticAlgorithm& g){
 
 
 #ifdef GALIB_USE_STREAMS
-void 
+void
 GAPopulation::write(STD_OSTREAM & os, SortBasis basis) const {
   for(unsigned int i=0; i<n; i++){
     if(basis == RAW)

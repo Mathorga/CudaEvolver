@@ -1,7 +1,7 @@
 CCOMP			=gcc
 CCOMP_FLAGS		=-std=c++98 -Wall -Wpedantic
 CCOMP_LIBS		=-lstdc++
-
+C=-dc -dlink -arch=sm_35
 NVCOMP			=nvcc
 NVCOMP_FLAGS	=-std=c++11 --compiler-options -Wall
 NVCOMP_LIBS		=-lstdc++

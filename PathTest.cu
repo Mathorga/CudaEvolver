@@ -14,7 +14,7 @@
 #define GEN_NUMBER 100
 #define MUT_RATE 0.001
 
-#define FIELD_SIZE 512
+#define FIELD_SIZE 100
 #define CHECKS_NUMBER 10
 
 typedef unsigned char cell_t;
@@ -104,9 +104,8 @@ void dump(const cell_t *field, const PathGenome::_2DDot *path, int n, const char
 }
 
 
-// |-----------------------------------------------------------------------------------------|
-// Fitness function test.
-// |-----------------------------------------------------------------------------------------|
+
+
 float fitness(GAGenome &g) {
     GA1DBinaryStringGenome &genome = (GA1DBinaryStringGenome &)g;
 
@@ -118,54 +117,42 @@ float fitness(GAGenome &g) {
     }
     return score;
 }
-// |-----------------------------------------------------------------------------------------|
 
 
 
-// |-----------------------------------------------------------------------------------------|
-// Initializers.
-// |-----------------------------------------------------------------------------------------|
-void randomInitializer(GAGenome &g) {
-    GA1DBinaryStringGenome &genome=(GA1DBinaryStringGenome &)g;
 
-    for (int i = 0; i < genome.size(); i++) {
-        genome.gene(i, GARandomBit());
-    }
-}
-
-void worstCaseInitializer(GAGenome &g) {
-    GA1DBinaryStringGenome &genome=(GA1DBinaryStringGenome &)g;
-
-    for (int i = 0; i < genome.size(); i++) {
-        genome.gene(i, 0);
-    }
-}
-// |-----------------------------------------------------------------------------------------|
-
-
-// |-----------------------------------------------------------------------------------------|
-// CUDA population evaluator.
-// |-----------------------------------------------------------------------------------------|
-__global__ void evaluate(GAPopulation &pop) {
-    // pop.individual(threadIdx.x).evaluate();
-}
 
 void cudaEvaluator(GAPopulation &p) {
-    dim3 blockSize(p.size());
+    dim3 blockSize(CHECKS_NUMBER);
+    for (int i = 0; i < p.size(); i++) {
+        GAGenome *individual = &(p.individual(i));
+        // Allocate memory for the genome object on the device.
+        GAGenome *d_individual;
+        cudaMalloc(&d_individual, sizeof(GAGenome));
+        // Copy the genome object to the device.
+        cudaMemcpy(d_individual, &individual, sizeof(GAGenome), cudaMemcpyHostToDevice);
 
-    // TODO Allocate device memory for the population and cudaMemcpy it.
-    // cudaMalloc();
-    // cudaMemcpy();
+        // Allocate memory for the genome object's pointers on the device.
+        // PathGenome::_2DDot *d_checks;
+        PathGenome *ind = (PathGenome *) individual;
+        PathGenome::_2DDot *d_path;
+        float *d_distances;
+        // cudaMalloc(&d_checks, sizeof(PathGenome::_2DDot));
+        cudaMalloc(&d_path, sizeof(PathGenome::_2DDot));
+        cudaMalloc(&d_distances, sizeof(float));
+        // Copy the genome object' pointers on the device.
+        cudaMemcpy(d_path, ind->getPath(), sizeof(PathGenome::_2DDot), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_distances, ind->getDistances(), sizeof(float), cudaMemcpyHostToDevice);
 
-    evaluate<<<1, blockSize>>>(p);
+        // evaluate(d_individual);
+
+        // Set the score.
+    }
 }
-// |-----------------------------------------------------------------------------------------|
 
 
 
-// |-----------------------------------------------------------------------------------------|
-// Main.
-// |-----------------------------------------------------------------------------------------|
+
 int main(int argc, char const *argv[]) {
     // Create a field of checks.
     cell_t *field;
@@ -188,37 +175,13 @@ int main(int argc, char const *argv[]) {
 
     dump(field, NULL, FIELD_SIZE, "field.ppm");
 
-    std::cout << "Original checks:\n";
+    std::cout << "Field:\n";
     for (int i = 0; i < CHECKS_NUMBER; i++) {
         std::cout << "x:" << checks[i].x << "\ty:" << checks[i].y << "\n";
     }
 
     // Create a genome.
     PathGenome genome(CHECKS_NUMBER, checks);
-    std::cout << "genome after creation:\n" << genome << std::endl;
-
-    genome.initialize();
-    std::cout << "genome after initialization:\n" << genome << std::endl;
-
-    dump(field, genome.getPath(), FIELD_SIZE, "path.ppm");
-
-    genome.mutate(MUT_RATE);
-    std::cout << "genome after mutation:\n" << genome << std::endl;
-
-    dump(field, genome.getPath(), FIELD_SIZE, "pathMutated.ppm");
-
-
-    PathGenome genome2(CHECKS_NUMBER, checks);
-    std::cout << "genome2 after creation:\n" << genome2 << std::endl;
-
-    genome.initialize();
-    std::cout << "genome2 after initialization:\n" << genome << std::endl;
-
-    PathGenome *c1 = new PathGenome(CHECKS_NUMBER);
-    PathGenome *c2 = new PathGenome(CHECKS_NUMBER);
-    PathGenome::onePointCrossover(genome, genome2, c1, NULL);
-
-    std::cout << "child:\n" << *c1 << std::endl;
 
     // for (int i = 0; i < 1000; i++) {
     //     genome.mutate(MUT_RATE);
@@ -234,10 +197,18 @@ int main(int argc, char const *argv[]) {
     //     dump(field, genome.getPath(), FIELD_SIZE, fileName);
     // }
 
-    // // Create a population.
-    // GAPopulation population(genome);
-    // population.evaluator(cudaEvaluator);
-    //
+    // Create a population.
+    GAPopulation population(genome, POP_SIZE);
+    population.initialize();
+    population.evaluator(cudaEvaluator);
+    // cudaEvaluator(population);
+    std::cout << "\nPopulation\n" << population;
+
+    population.evaluate();
+    for (int i = 0; i < population.size(); i++) {
+        std::cout << "individual " << i << " - score: " << ((PathGenome &) (population.individual(i))).score() << "\n";
+    }
+
     // // Create the genetic algorithm.
     // GASimpleGA ga(population);
     // ga.nGenerations(GEN_NUMBER);
@@ -293,4 +264,3 @@ int main(int argc, char const *argv[]) {
     // delete a;
     return 0;
 }
-// |-----------------------------------------------------------------------------------------|
