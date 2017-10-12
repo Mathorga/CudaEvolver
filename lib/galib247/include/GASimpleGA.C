@@ -42,10 +42,10 @@ GASimpleGA::~GASimpleGA(){
 }
 GASimpleGA&
 GASimpleGA::operator=(const GASimpleGA& ga){
-  if(&ga != this) copy(ga); 
+  if(&ga != this) copy(ga);
   return *this;
 }
-void 
+void
 GASimpleGA::copy(const GAGeneticAlgorithm & g){
   GAGeneticAlgorithm::copy(g);
   const GASimpleGA& ga = DYN_CAST(const GASimpleGA&,g);
@@ -72,7 +72,7 @@ int
 GASimpleGA::get(const char* name, void* value) const {
   int status = GAGeneticAlgorithm::get(name, value);
 
-  if(strcmp(name, gaNelitism) == 0 || 
+  if(strcmp(name, gaNelitism) == 0 ||
      strcmp(name, gaSNelitism) == 0){
     *((int*)value) = (el == gaTrue ? 1 : 0);
     status = 0;
@@ -80,14 +80,14 @@ GASimpleGA::get(const char* name, void* value) const {
   return status;
 }
 
-void 
+void
 GASimpleGA::objectiveFunction(GAGenome::Evaluator f){
   GAGeneticAlgorithm::objectiveFunction(f);
   for(int i=0; i<pop->size(); i++)
     oldPop->individual(i).evaluator(f);
 }
 
-void 
+void
 GASimpleGA::objectiveData(const GAEvalData& v){
   GAGeneticAlgorithm::objectiveData(v);
   for(int i=0; i<pop->size(); i++)
@@ -108,15 +108,15 @@ GASimpleGA::population(const GAPopulation& p) {
   return *pop;
 }
 
-int 
+int
 GASimpleGA::populationSize(unsigned int n) {
   GAGeneticAlgorithm::populationSize(n);
   oldPop->size(n);
   return n;
 }
 
-int 
-GASimpleGA::minimaxi(int m) { 
+int
+GASimpleGA::minimaxi(int m) {
   GAGeneticAlgorithm::minimaxi(m);
   if(m == MINIMIZE)
     oldPop->order(GAPopulation::LOW_IS_BEST);
@@ -137,7 +137,7 @@ GASimpleGA::minimaxi(int m) {
 // Initialize the population, set the random seed as needed, do a few stupidity
 // checks, reset the stats.  We must initialize the old pop because there is no
 // guarantee that each individual will get initialized during the course of our
-// operator++ operations.  We do not evaluate the old pop because that will 
+// operator++ operations.  We do not evaluate the old pop because that will
 // happen as-needed later on.
 void
 GASimpleGA::initialize(unsigned int seed)
@@ -150,14 +150,14 @@ GASimpleGA::initialize(unsigned int seed)
 
   stats.reset(*pop);
 
-  if(!scross) 
+  if(!scross)
     GAErr(GA_LOC, className(), "initialize", gaErrNoSexualMating);
 }
 
 
 //   Evolve a new generation of genomes.  When we start this routine, pop
-// contains the current generation.  When we finish, pop contains the new 
-// generation and oldPop contains the (no longer) current generation.  The 
+// contains the current generation.  When we finish, pop contains the new
+// generation and oldPop contains the (no longer) current generation.  The
 // previous old generation is lost.  We don't deallocate any memory, we just
 // reset the contents of the genomes.
 //   The selection routine must return a pointer to a genome from the old
@@ -169,15 +169,15 @@ GASimpleGA::step()
   GAGenome *mom, *dad;          // tmp holders for selected genomes
 
   GAPopulation *tmppop;		// Swap the old population with the new pop.
-  tmppop = oldPop;		// When we finish the ++ we want the newly 
+  tmppop = oldPop;		// When we finish the ++ we want the newly
   oldPop = pop;			// generated population to be current (for
   pop = tmppop;			// references to it from member functions).
 
-// Generate the individuals in the temporary population from individuals in 
+// Generate the individuals in the temporary population from individuals in
 // the main population.
 
   for(i=0; i<pop->size()-1; i+=2){	// takes care of odd population
-    mom = &(oldPop->select());  
+    mom = &(oldPop->select());
     dad = &(oldPop->select());
     stats.numsel += 2;		// keep track of number of selections
 
@@ -199,7 +199,7 @@ GASimpleGA::step()
     stats.numeval += c1 + c2;
   }
   if(pop->size() % 2 != 0){	// do the remaining population member
-    mom = &(oldPop->select());  
+    mom = &(oldPop->select());
     dad = &(oldPop->select());
     stats.numsel += 2;		// keep track of number of selections
 
@@ -229,12 +229,12 @@ GASimpleGA::step()
 
   if(minimaxi() == GAGeneticAlgorithm::MAXIMIZE) {
     if(el && oldPop->best().score() > pop->best().score())
-      oldPop->replace(pop->replace(&(oldPop->best()), GAPopulation::WORST), 
+      oldPop->replace(pop->replace(&(oldPop->best()), GAPopulation::WORST),
 		      GAPopulation::BEST);
   }
   else {
     if(el && oldPop->best().score() < pop->best().score())
-      oldPop->replace(pop->replace(&(oldPop->best()), GAPopulation::WORST), 
+      oldPop->replace(pop->replace(&(oldPop->best()), GAPopulation::WORST),
 		      GAPopulation::BEST);
   }
 

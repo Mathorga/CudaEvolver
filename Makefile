@@ -1,9 +1,9 @@
 CCOMP			=gcc
 CCOMP_FLAGS		=-std=c++98 -Wall -Wpedantic
 CCOMP_LIBS		=-lstdc++
-C=-dc -dlink -arch=sm_35
+C=-dc -dlink -arch=sm_35 -g -G
 NVCOMP			=nvcc
-NVCOMP_FLAGS	=-std=c++11 --compiler-options -Wall
+NVCOMP_FLAGS	=-std=c++11 -g -G --compiler-options -Wall
 NVCOMP_LIBS		=-lstdc++
 
 GA_INC_DIR		=./lib/galib247/include

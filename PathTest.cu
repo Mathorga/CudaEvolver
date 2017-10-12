@@ -10,12 +10,12 @@
 // |n| is the number of columns (length of the rows).
 #define IDX(i, j, n) ((i) * (n) + (j))
 
-#define POP_SIZE 10
-#define GEN_NUMBER 100
-#define MUT_RATE 0.001
+#define POP_SIZE 5
+#define GEN_NUMBER 300
+#define MUT_RATE 0.1
 
-#define FIELD_SIZE 100
-#define CHECKS_NUMBER 10
+#define FIELD_SIZE 50
+#define CHECKS_NUMBER 5
 
 typedef unsigned char cell_t;
 
@@ -34,7 +34,8 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
 
     int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
     int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-    int err = (dx > dy ? dx : -dy) / 2, e2;
+    int err = (dx > dy ? dx : -dy) / 2;
+    int e2;
 
     for(;;){
         if (!(x == x0 && y == y0) && !(x == x1 && y == y1)) {
@@ -44,7 +45,7 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
             break;
         }
         e2 = err;
-        if (e2 >-dx) {
+        if (e2 > -dx) {
             err -= dy;
             x += sx;
         }
@@ -79,16 +80,16 @@ void dump(const cell_t *field, const PathGenome::_2DDot *path, int n, const char
     fprintf(out, "255\n");
     for (int x = 0; x < n; x++) {
         for (int y = 0; y < n; y++) {
-            if (fieldCopy[IDX((x + 1) % n, y, n)] == CHECK ||
-                fieldCopy[IDX(x, (y + 1) % n, n)] == CHECK ||
-                fieldCopy[IDX((x + 1) % n, (y + 1) % n, n)] == CHECK ||
-                fieldCopy[IDX((x - 1 + n) % n, y, n)] == CHECK ||
-                fieldCopy[IDX(x, (y - 1 + n) % n, n)] == CHECK ||
-                fieldCopy[IDX((x - 1 + n) % n, (y - 1 + n) % n, n)] == CHECK ||
-                fieldCopy[IDX((x + 1) %n, (y - 1 + n) % n, n)] == CHECK ||
-                fieldCopy[IDX((x - 1 + n) %n, (y + 1) % n, n)] == CHECK) {
+            if (field[IDX((x + 1) % n, y, n)] == CHECK ||
+                field[IDX(x, (y + 1) % n, n)] == CHECK ||
+                field[IDX((x + 1) % n, (y + 1) % n, n)] == CHECK ||
+                field[IDX((x - 1 + n) % n, y, n)] == CHECK ||
+                field[IDX(x, (y - 1 + n) % n, n)] == CHECK ||
+                field[IDX((x - 1 + n) % n, (y - 1 + n) % n, n)] == CHECK ||
+                field[IDX((x + 1) %n, (y - 1 + n) % n, n)] == CHECK ||
+                field[IDX((x - 1 + n) %n, (y + 1) % n, n)] == CHECK) {
                 fprintf(out, "%c%c%c", 255, 30, 30);
-            } else if (fieldCopy[IDX(x, y, n)] == CHECK) {
+            } else if (field[IDX(x, y, n)] == CHECK) {
                 fprintf(out, "%c%c%c", 20, 20, 0);
             } else if (fieldCopy[IDX(x, y, n)] == EMPTY) {
                 fprintf(out, "%c%c%c", 20, 20, 20);
@@ -121,7 +122,6 @@ float fitness(GAGenome &g) {
 
 
 
-
 void cudaEvaluator(GAPopulation &p) {
     dim3 blockSize(CHECKS_NUMBER);
     for (int i = 0; i < p.size(); i++) {
@@ -144,17 +144,20 @@ void cudaEvaluator(GAPopulation &p) {
         cudaMemcpy(d_path, ind->getPath(), sizeof(PathGenome::_2DDot), cudaMemcpyHostToDevice);
         cudaMemcpy(d_distances, ind->getDistances(), sizeof(float), cudaMemcpyHostToDevice);
 
-        // evaluate(d_individual);
-
         // Set the score.
     }
 }
 
 
 
+__global__ void kernel() {
+    printf("%d\n", threadIdx.x);
+}
+
 
 int main(int argc, char const *argv[]) {
     // Create a field of checks.
+    kernel<<<1, 10>>>();
     cell_t *field;
     PathGenome::_2DDot *checks;
 
@@ -183,13 +186,6 @@ int main(int argc, char const *argv[]) {
     // Create a genome.
     PathGenome genome(CHECKS_NUMBER, checks);
 
-    // for (int i = 0; i < 1000; i++) {
-    //     genome.mutate(MUT_RATE);
-    //     char fileName[200];
-    //     snprintf(fileName, 200, "pathMut%d.ppm", i);
-    //     dump(field, genome.getPath(), FIELD_SIZE, fileName);
-    // }
-
     // for (int i = 0; i < 100; i++) {
     //     genome.initialize();
     //     char fileName[200];
@@ -199,32 +195,31 @@ int main(int argc, char const *argv[]) {
 
     // Create a population.
     GAPopulation population(genome, POP_SIZE);
-    population.initialize();
-    population.evaluator(cudaEvaluator);
+    // population.initialize();
+    // population.evaluator(cudaEvaluator);
     // cudaEvaluator(population);
-    std::cout << "\nPopulation\n" << population;
 
-    population.evaluate();
-    for (int i = 0; i < population.size(); i++) {
-        std::cout << "individual " << i << " - score: " << ((PathGenome &) (population.individual(i))).score() << "\n";
-    }
+    // Create the genetic algorithm.
+    GASimpleGA ga(population);
+    ga.nGenerations(GEN_NUMBER);
+    ga.pMutation(MUT_RATE);
 
-    // // Create the genetic algorithm.
-    // GASimpleGA ga(population);
-    // ga.nGenerations(GEN_NUMBER);
-    // ga.pMutation(MUT_RATE);
-    //
-    // ga.initialize();
-    //
-    // GAPopulation tmpPop = ga.population();
+    ga.initialize();
+    ga.minimize();
+    ((PathGenome &) ga.population().individual(0)).evaluate();
+
+    // ga.evolve();
+    // std::cout << "\n1st population\n" << ga.population();
+
     // printf("\nInitial population:\n");
-    // for (int i = 0; i < tmpPop.size(); i++) {
-    //     printf("Individual %d: ", i);
-    //     GA1DBinaryStringGenome& individual = (GA1DBinaryStringGenome&)tmpPop.individual(i);
-    //     for (int j = 0; j < individual.length(); j++) {
-    //         printf("%d", individual.gene(j));
+    // for (int i = 0; i < ga.population().size(); i++) {
+    //     printf("Individual %d:\n", i);
+    //     PathGenome &individual = (PathGenome &)ga.population().individual(i);
+    //     for (unsigned int j = 0; j < individual.getChecksNum(); j++) {
+    //         printf("x:%d\ty:%d\n", individual.gene(j).x, individual.gene(j).y);
     //     }
     //     printf("\n");
+    //     printf("hello");
     // }
     // printf("\nBest: ");
     // GA1DBinaryStringGenome &currentBest = (GA1DBinaryStringGenome &)tmpPop.best();
@@ -234,32 +229,36 @@ int main(int argc, char const *argv[]) {
     // printf("\n\n");
 
 
-    // for (int i = 0; i < ga.nGenerations(); i++) {
-    //     // getchar();
-    //     printf("\n\n\nGENERATION %d\n", ga.generation() + 1);
-    //     ga.step();
-    //     GAPopulation tmpPop = ga.population();
-    //     // Print the population.
-    //     printf("\nPopulation:\n");
-    //     for (int i = 0; i < tmpPop.size(); i++) {
-    //         printf("Individual %d: ", i);
-    //         GA1DBinaryStringGenome& individual = (GA1DBinaryStringGenome&)tmpPop.individual(i);
-    //         for (int j = 0; j < individual.length(); j++) {
-    //             printf("%d", individual.gene(j));
-    //         }
-    //         printf("\n");
-    //     }
-    //     printf("\nBest: ");
-    //     currentBest = (GA1DBinaryStringGenome &)tmpPop.best();
-    //     for (int i = 0; i < currentBest.length(); i++) {
-    //         printf("%d", currentBest.gene(i));
-    //     }
-    //     printf("\tfitness: %f", tmpPop.max());
-    //     printf("\n\n");
-    //
-    //     // Print statistics.
-    //     // std::cout << ga.statistics() << std::endl;
-    // }
+    for (int i = 0; i < ga.nGenerations(); i++) {
+        getchar();
+        printf("\n\n\nGENERATION %d\n", ga.generation() + 1);
+        ga.step();
+        printf("\nbest score:%f\n", ga.population().max());
+        GAPopulation tmpPop = ga.population();
+        // Print the population.
+        // printf("\nPopulation:\n");
+        // for (int i = 0; i < tmpPop.size(); i++) {
+        //     printf("Individual %d: ", i);
+        //     GA1DBinaryStringGenome& individual = (GA1DBinaryStringGenome&)tmpPop.individual(i);
+        //     for (int j = 0; j < individual.length(); j++) {
+        //         printf("%d", individual.gene(j));
+        //     }
+        //     printf("\n");
+        // }
+        // printf("\nBest: ");
+        // currentBest = (GA1DBinaryStringGenome &) tmpPop.best();
+        // for (int i = 0; i < currentBest.length(); i++) {
+        //     printf("%d", currentBest.gene(i));
+        // }
+        char fileName[200];
+        snprintf(fileName, 200, "BestOfGen%d.ppm", i);
+        dump(field, ((PathGenome &) tmpPop.best()).getPath(), FIELD_SIZE, fileName);
+
+        printf("\n\n");
+
+        // Print statistics.
+        // std::cout << ga.statistics() << std::endl;
+    }
 
     // delete a;
     return 0;

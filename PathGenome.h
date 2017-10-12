@@ -33,17 +33,23 @@ public:
     PathGenome(unsigned int checksNum, _2DDot *checks);
     PathGenome(const PathGenome &orig);
 
+    PathGenome &operator=(const GAGenome &arg) {
+        copy(arg);
+        return *this;
+    }
+
     // Hide superclass' evaluate member function.
     // float evaluate(GABoolean flag = gaFalse) const ;
 
     // Destructors.
     virtual ~PathGenome();
+
     virtual GAGenome *clone(GAGenome::CloneMethod flag = CONTENTS) const;
     virtual void copy(const GAGenome &c);
 
     #ifdef GALIB_USE_STREAMS
         virtual int read(STD_ISTREAM &is);
-        virtual int write(std::ostream &os) const;
+        virtual int write(STD_OSTREAM &os) const;
     #endif
 
     virtual int equal(const GAGenome &g) const;
