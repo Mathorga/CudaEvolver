@@ -24,7 +24,7 @@ public:
     // in the order they appear in it.
     static int onePointCrossover(const GAGenome &, const GAGenome &, GAGenome *, GAGenome *);
 
-    // static float Comparator(const GAGenome &, const GAGenome &);
+    static float orderComparator(const GAGenome &, const GAGenome &);
 
     static float cudaEvaluator(GAGenome &);
 
@@ -56,9 +56,10 @@ public:
     __CUDA__ _2DDot gene(unsigned int idx = 0) const {
         return this->path[idx];
     }
-    _2DDot gene(unsigned int idx, unsigned int x, unsigned int y) {
+    _2DDot gene(unsigned int idx, unsigned int x, unsigned int y, unsigned int id) {
         this->path[idx].x = x;
         this->path[idx].y = y;
+        this->path[idx].id = id;
         return this->path[idx];
     }
     _2DDot gene(unsigned int idx, _2DDot check) {

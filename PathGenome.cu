@@ -28,12 +28,13 @@ void PathGenome::randomInitializer(GAGenome &genome) {
 int PathGenome::swapMutator(GAGenome &genome, float mutRate) {
     PathGenome &child = (PathGenome &) genome;
     int nSwaps = 0;
+    // std::cout << "\nbefore mutation:\n" << child << std::endl;
 
     _2DDot *tmp = (_2DDot *) malloc(child.checksNum * sizeof(_2DDot));
 
     for (unsigned int i = 0; i < child.checksNum; i++) {
         GARandomSeed();
-        if (GARandomFloat(0, 1) <= mutRate / 2) {
+        if (GARandomFloat(0, 1) <= mutRate) {
             int firstIndex = i;
             int secondIndex = GARandomInt(0, child.checksNum - 1);
 
@@ -45,15 +46,17 @@ int PathGenome::swapMutator(GAGenome &genome, float mutRate) {
             child.path[secondIndex] = tmp[firstIndex];
             nSwaps++;
 
-            std::cout << child << "\n";
         }
     }
+    // std::cout << "\nafter mutation:\n" << child << std::endl;
     return nSwaps;
 }
 
 int PathGenome::onePointCrossover(const GAGenome &parent1, const GAGenome &parent2, GAGenome *child1, GAGenome *child2) {
     PathGenome &p1 = (PathGenome &) parent1;
     PathGenome &p2 = (PathGenome &) parent2;
+
+    // std::cout << "\nparent 1:\n" << p1 << "parent 2:\n" << p2 << std::endl;
 
     int childrenNum = 0;
 
@@ -73,18 +76,24 @@ int PathGenome::onePointCrossover(const GAGenome &parent1, const GAGenome &paren
             for (unsigned int j = 0; j < p2.checksNum; j++) {
                 bool insert = true;
                 for (unsigned int k = 0; k <= midPoint; k++) {
+                    // printf("k:%d\tj:%d\ti:%d\nc1:%d\tp2:%d\n\n", k, j, i, c1.gene(j).id, p2.gene(k).id);
+                    // std::cout << "p2:\n" << p2 << std::endl;
                     if (p2.gene(j).id == c1.gene(k).id) {
                         // printf("insert is false\n");
                         insert = false;
+                        break;
                     }
                 }
                 if (insert) {
+                    // fflush(stdout);
+                    // printf("%d\t%d\t%d\n", p2.gene(j).x, p2.gene(j).y, p2.gene(j).id);
                     c1.gene(i, p2.gene(j));
                     i++;
                     // std::cout << "from second parent so far:\n" << c1 << std::endl;
                 }
             }
         }
+        // std::cout << "\nchild 1:\n" << c1 << "midpoint:" << midPoint << std::endl;
 
         // Second child.
         midPoint = GARandomInt(0, p2.checksNum - 1);
@@ -107,6 +116,7 @@ int PathGenome::onePointCrossover(const GAGenome &parent1, const GAGenome &paren
             }
         }
 
+        // std::cout << "child 2:\n" << c2 << std::endl;
         childrenNum = 2;
     } else if (child1 || child2) {
         // Single child crossover
@@ -116,19 +126,36 @@ int PathGenome::onePointCrossover(const GAGenome &parent1, const GAGenome &paren
         for (unsigned int i = 0; i <= midPoint; i++) {
             c.gene(i, p1.gene(i));
         }
-        for (unsigned int i = midPoint + 1, j = 0; i < p2.checksNum && j < p2.checksNum; i++) {
-            for (unsigned int k = 0; k < midPoint; k++) {
-                if (p2.gene(j).id != c.gene(k).id) {
+        for (unsigned int i = midPoint + 1; i < p2.checksNum; ) {
+            // printf("i = %d\tj = %d\n", i, j);
+            for (unsigned int j = 0; j < p2.checksNum; j++) {
+                bool insert = true;
+                for (unsigned int k = 0; k <= midPoint; k++) {
+                    // printf("k:%d\tj:%d\ti:%d\nc1:%d\tp2:%d\n\n", k, j, i, c1.gene(j).id, p2.gene(k).id);
+                    // std::cout << "p2:\n" << p2 << std::endl;
+                    if (p2.gene(j).id == c.gene(k).id) {
+                        // printf("insert is false\n");
+                        insert = false;
+                        break;
+                    }
+                }
+                if (insert) {
                     c.gene(i, p2.gene(j));
-                    j++;
+                    i++;
+                    // std::cout << "from second parent so far:\n" << c1 << std::endl;
                 }
             }
         }
 
+        // std::cout << "child:\n" << c << std::endl;
         childrenNum = 1;
     }
 
     return childrenNum;
+}
+
+float PathGenome::orderComparator(const GAGenome &a, const GAGenome &b) {
+    return 0.5;
 }
 
 __global__ void cudaEval(PathGenome *genome) {
@@ -137,7 +164,7 @@ __global__ void cudaEval(PathGenome *genome) {
     float dy = (float) genome->gene((threadIdx.x + 1) % genome->getChecksNum()).y - (float) genome->gene(threadIdx.x).y;
     distance = sqrtf(powf(dx, 2) + powf(dy, 2));
     genome->setDistance(threadIdx.x, distance);
-    printf("Ciao\n");
+    // printf("thread:%d\tdx:%f\tdy:%f\tdistance:%f\n", threadIdx.x, dx, dy, distance);
 }
 
 float PathGenome::cudaEvaluator(GAGenome &g) {
@@ -165,7 +192,7 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
     cudaMemcpy(&(d_genome->path), &d_path, sizeof(PathGenome::_2DDot *), cudaMemcpyHostToDevice);
     cudaMemcpy(&(d_genome->distances), &d_distances, sizeof(float *), cudaMemcpyHostToDevice);
 
-    cudaEval<<<1, 10>>>(d_genome);
+    cudaEval<<<1, blockSize>>>(d_genome);
     cudaDeviceSynchronize();
 
     // Copy the object back.
@@ -173,16 +200,17 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
 
     float score = 0.0;
     for (unsigned int i = 0; i < genome->checksNum; i++) {
+        // printf("distance %d on host:%f\n\n", i, genome->getDistances()[i]);
         score += genome->getDistances()[i];
     }
-
-    printf("Score: %f\n", score);
+    // printf("score:%f\n\n", score);
 
     cudaFree(d_path);
     cudaFree(d_distances);
     cudaFree(d_genome);
     return score;
 }
+
 
 
 PathGenome::PathGenome(unsigned int checksNum) {
@@ -251,18 +279,21 @@ void PathGenome::copy(const GAGenome &orig) {
         this->checksNum = original->checksNum;
         this->checks = (_2DDot *) malloc(this->checksNum * sizeof(_2DDot));
         for (unsigned int i = 0; i < this->checksNum; i++) {
+            // printf("copy loop\n");
             this->checks[i].x = original->checks[i].x;
             this->checks[i].y = original->checks[i].y;
             this->checks[i].id = original->checks[i].id;
         }
         this->path = (_2DDot *) malloc(this->checksNum * sizeof(_2DDot));
         for (unsigned int i = 0; i < this->checksNum; i++) {
+            // printf("copy loop\n");
             this->path[i].x = original->path[i].x;
             this->path[i].y = original->path[i].y;
             this->path[i].id = original->path[i].id;
         }
         this->distances = (float *) malloc(this->checksNum * sizeof(float));
         for (unsigned int i = 0; i < this->checksNum; i++) {
+            // printf("copy loop\n");
             this->distances[i] = original->distances[i];
         }
     }
@@ -283,6 +314,7 @@ GAGenome *PathGenome::clone(GAGenome::CloneMethod flag) const {
     else {
         cpy->GAGenome::copy(*this);
         for (unsigned int i = 0; i < this->checksNum; i++) {
+            // printf("clone loop\n");
             cpy->checksNum = this->checksNum;
             // cpy->gene(i, this->gene(i));
         }

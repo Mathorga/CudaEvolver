@@ -10,12 +10,13 @@
 // |n| is the number of columns (length of the rows).
 #define IDX(i, j, n) ((i) * (n) + (j))
 
-#define POP_SIZE 5
-#define GEN_NUMBER 300
-#define MUT_RATE 0.1
+#define POP_SIZE 10
+#define GEN_NUMBER 5
+#define MUT_RATE 0.5
+#define CROSS_RATE 1
 
-#define FIELD_SIZE 50
-#define CHECKS_NUMBER 5
+#define FIELD_SIZE 300
+#define CHECKS_NUMBER 10
 
 typedef unsigned char cell_t;
 
@@ -150,14 +151,29 @@ void cudaEvaluator(GAPopulation &p) {
 
 
 
-__global__ void kernel() {
-    printf("%d\n", threadIdx.x);
+
+float serialEvaluator(GAGenome &g) {
+    PathGenome &genome = (PathGenome &) g;
+    float distance = 0.0;
+    float score = 0.0;
+    for (unsigned int i = 0; i < genome.getChecksNum(); i++) {
+        float dx = (float) genome.gene((i + 1) % genome.getChecksNum()).x - (float) genome.gene(i).x;
+        float dy = (float) genome.gene((i + 1) % genome.getChecksNum()).y - (float) genome.gene(i).y;
+        distance = sqrtf(powf(dx, 2) + powf(dy, 2));
+        genome.setDistance(i, distance);
+    }
+    for (unsigned int i = 0; i < genome.getChecksNum(); i++) {
+        // printf("distance %d on host:%f\n\n", i, genome->getDistances()[i]);
+        score += genome.getDistances()[i];
+    }
+    return score;
 }
+
+
 
 
 int main(int argc, char const *argv[]) {
     // Create a field of checks.
-    kernel<<<1, 10>>>();
     cell_t *field;
     PathGenome::_2DDot *checks;
 
@@ -185,6 +201,17 @@ int main(int argc, char const *argv[]) {
 
     // Create a genome.
     PathGenome genome(CHECKS_NUMBER, checks);
+    genome.evaluator(serialEvaluator);
+    // PathGenome genome2(CHECKS_NUMBER, checks);
+
+    // genome.initialize();
+    // genome2.initialize();
+    // std::cout << "parent1:\n" << genome << "\n";
+    // std::cout << "parent2:\n" << genome2 << "\n";
+    //
+    // PathGenome *c = (PathGenome *) genome.clone(GAGenome::CONTENTS);
+    // PathGenome::onePointCrossover(genome, genome2, c, 0);   // test single child crossover
+    // std::cout << "child of crossover:\n" << *c << "\n";
 
     // for (int i = 0; i < 100; i++) {
     //     genome.initialize();
@@ -194,72 +221,61 @@ int main(int argc, char const *argv[]) {
     // }
 
     // Create a population.
-    GAPopulation population(genome, POP_SIZE);
-    // population.initialize();
+    // GAPopulation population(genome, POP_SIZE);
     // population.evaluator(cudaEvaluator);
     // cudaEvaluator(population);
 
     // Create the genetic algorithm.
-    GASimpleGA ga(population);
+    GASimpleGA ga(genome);
+    ga.populationSize(POP_SIZE);
     ga.nGenerations(GEN_NUMBER);
     ga.pMutation(MUT_RATE);
+    ga.pCrossover(CROSS_RATE);
+    ga.selector(GARankSelector(GASelectionScheme::RAW));
 
     ga.initialize();
+    // std::cout << "\nThe GA initialized the population, here it is:\n" << ga.population();
+
     ga.minimize();
-    ((PathGenome &) ga.population().individual(0)).evaluate();
 
-    // ga.evolve();
-    // std::cout << "\n1st population\n" << ga.population();
-
-    // printf("\nInitial population:\n");
+    char fileName[200];
     // for (int i = 0; i < ga.population().size(); i++) {
-    //     printf("Individual %d:\n", i);
-    //     PathGenome &individual = (PathGenome &)ga.population().individual(i);
-    //     for (unsigned int j = 0; j < individual.getChecksNum(); j++) {
-    //         printf("x:%d\ty:%d\n", individual.gene(j).x, individual.gene(j).y);
-    //     }
-    //     printf("\n");
-    //     printf("hello");
+    //     printf("\nelement%d score:%f", i, ga.population().individual().);
     // }
-    // printf("\nBest: ");
-    // GA1DBinaryStringGenome &currentBest = (GA1DBinaryStringGenome &)tmpPop.best();
-    // for (int i = 0; i < currentBest.length(); i++) {
-    //     printf("%d", currentBest.gene(i));
+    // printf("\ngen 1 best score:%f\n", ga.population().min());
+    printf("\ngen 0 best score:%f\tworst score:%f\n", ga.population().min(), ga.population().max());
+    // for (int i = 0; i < ga.population().size(); i++) {
+    //     printf("\ngen 1 individual %d score %f\n", i, ga.population().individual(i).score());
+    //     // snprintf(fileName, 200, "element%d.ppm", i);
+    //     // dump(field, ((PathGenome &) ga.population().individual(i)).getPath(), FIELD_SIZE, fileName);
     // }
-    // printf("\n\n");
 
+    // for (int i = 0; i < ga.population().size(); i++) {
+    //     char fileName[200];
+    //     snprintf(fileName, 200, "element%d.ppm", i);
+    //     dump(field, ((PathGenome &) ga.population().individual(i)).getPath(), FIELD_SIZE, fileName);
+    // }
+    snprintf(fileName, 200, "BestOfGeneration%d.ppm", ga.generation());
+    dump(field, ((PathGenome &) ga.population().best()).getPath(), FIELD_SIZE, fileName);
 
     for (int i = 0; i < ga.nGenerations(); i++) {
         getchar();
-        printf("\n\n\nGENERATION %d\n", ga.generation() + 1);
+        // printf("\nGENERATION %d\n", ga.generation() + 1);
+        // for (int j = 0; j < ga.population().size(); j++) {
+        //     printf("\ngen %d individual %d score %f\n", i, j, ga.population().individual(i).score());
+        //     // snprintf(fileName, 200, "element%d.ppm", i);
+        //     // dump(field, ((PathGenome &) ga.population().individual(i)).getPath(), FIELD_SIZE, fileName);
+        // }
         ga.step();
-        printf("\nbest score:%f\n", ga.population().max());
-        GAPopulation tmpPop = ga.population();
-        // Print the population.
-        // printf("\nPopulation:\n");
-        // for (int i = 0; i < tmpPop.size(); i++) {
-        //     printf("Individual %d: ", i);
-        //     GA1DBinaryStringGenome& individual = (GA1DBinaryStringGenome&)tmpPop.individual(i);
-        //     for (int j = 0; j < individual.length(); j++) {
-        //         printf("%d", individual.gene(j));
-        //     }
-        //     printf("\n");
-        // }
-        // printf("\nBest: ");
-        // currentBest = (GA1DBinaryStringGenome &) tmpPop.best();
-        // for (int i = 0; i < currentBest.length(); i++) {
-        //     printf("%d", currentBest.gene(i));
-        // }
-        char fileName[200];
-        snprintf(fileName, 200, "BestOfGen%d.ppm", i);
-        dump(field, ((PathGenome &) tmpPop.best()).getPath(), FIELD_SIZE, fileName);
-
-        printf("\n\n");
-
-        // Print statistics.
-        // std::cout << ga.statistics() << std::endl;
+        printf("\ngeneration %d best score:%f\tworst score:%f\n", i, ga.population().min(), ga.population().max());
+        // snprintf(fileName, 200, "WorstOfGeneration%d.ppm", i);
+        // dump(field, ((PathGenome &) ga.population().worst()).getPath(), FIELD_SIZE, fileName);
     }
 
-    // delete a;
+    // snprintf(fileName, 200, "BestOfGeneration%d.ppm", ga.generation());
+    // dump(field, ((PathGenome &) ga.population().best()).getPath(), FIELD_SIZE, fileName);
+
+    std::cout << ga.statistics() << std::endl;
+
     return 0;
 }
