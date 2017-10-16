@@ -13,7 +13,7 @@ public:
         unsigned int id = 0;
     } _2DDot;
 
-    GADefineIdentity("PathGenome", 201);
+    GADefineIdentity("PathGenome", 205);
     // Initializes the genome connecting the checks in the order they appear.
     static void linearInitializer(GAGenome &);
     // Randomly initializes the genome.

@@ -158,25 +158,15 @@ float PathGenome::orderComparator(const GAGenome &a, const GAGenome &b) {
     return 0.5;
 }
 
-__global__ void cudaEval(PathGenome *genome) {
-    float distance = 0.0;
-    float dx = (float) genome->gene((threadIdx.x + 1) % genome->getChecksNum()).x - (float) genome->gene(threadIdx.x).x;
-    float dy = (float) genome->gene((threadIdx.x + 1) % genome->getChecksNum()).y - (float) genome->gene(threadIdx.x).y;
-    distance = sqrtf(powf(dx, 2) + powf(dy, 2));
-    genome->setDistance(threadIdx.x, distance);
-    // printf("thread:%d\tdx:%f\tdy:%f\tdistance:%f\n", threadIdx.x, dx, dy, distance);
+__global__ void cudaEval(PathGenome::_2DDot *path, float *distances) {
+    float dx = (float) path[(threadIdx.x + 1) % blockDim.x].x - (float) path[threadIdx.x].x;
+    float dy = (float) path[(threadIdx.x + 1) % blockDim.x].y - (float) path[threadIdx.x].y;
+    distances[threadIdx.x] = sqrtf(powf(dx, 2) + powf(dy, 2));
 }
 
 float PathGenome::cudaEvaluator(GAGenome &g) {
     PathGenome *genome = &((PathGenome &) g);
     dim3 blockSize(genome->checksNum);
-
-    // Allocate memory for the genome object on the device
-    PathGenome *d_genome;
-    cudaMalloc(&d_genome, sizeof(PathGenome));
-
-    // Copy the genome object to the device.
-    cudaMemcpy(d_genome, genome, sizeof(PathGenome), cudaMemcpyHostToDevice);
 
     // Allocate memory for the genome object's pointers on the device.
     PathGenome::_2DDot *d_path;
@@ -188,11 +178,7 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
     cudaMemcpy(d_path, genome->getPath(), genome->checksNum * sizeof(PathGenome::_2DDot), cudaMemcpyHostToDevice);
     cudaMemcpy(d_distances, genome->getDistances(), genome->checksNum * sizeof(float), cudaMemcpyHostToDevice);
 
-    // Copy pointers values correct locations on the device.
-    cudaMemcpy(&(d_genome->path), &d_path, sizeof(PathGenome::_2DDot *), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_genome->distances), &d_distances, sizeof(float *), cudaMemcpyHostToDevice);
-
-    cudaEval<<<1, blockSize>>>(d_genome);
+    cudaEval<<<1, blockSize>>>(d_path, d_distances);
     cudaDeviceSynchronize();
 
     // Copy the object back.
@@ -208,7 +194,6 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
 
     cudaFree(d_path);
     cudaFree(d_distances);
-    cudaFree(d_genome);
     return score;
 }
 

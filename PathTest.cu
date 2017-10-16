@@ -2,21 +2,15 @@
 #include <stdlib.h>
 #include <iostream>
 #include <ga/ga.h>
+#include "hpc.h"
 #include "PathGenome.h"
+#include "try.h"
 
 // Translates bidimensional indexes to a monodimensional one.
 // |i| is the column index.
 // |j| is the row index.
 // |n| is the number of columns (length of the rows).
 #define IDX(i, j, n) ((i) * (n) + (j))
-
-#define POP_SIZE 100
-#define GEN_NUMBER 2000
-#define MUT_RATE 0.1
-#define CROSS_RATE 1
-
-#define FIELD_SIZE 500
-#define CHECKS_NUMBER 30
 
 typedef unsigned char cell_t;
 
@@ -105,6 +99,7 @@ void dump(const cell_t *field, const PathGenome::_2DDot *path, unsigned int n, u
     fclose(out);
 }
 
+
 float serialEvaluator(GAGenome &g) {
     PathGenome &genome = (PathGenome &) g;
     float distance = 0.0;
@@ -126,6 +121,8 @@ float serialEvaluator(GAGenome &g) {
 
 
 void populationEvaluator(GAPopulation &pop) {
+    // Copy individuals to device
+    evaluate<<<popSize, checksNumber>>>(pop.individuals());
     for (int i = 0; i < pop.size(); i++) {
         pop.individual(i).evaluate(gaTrue);
     }
@@ -141,6 +138,8 @@ int main(int argc, char const *argv[]) {
     float crossRate = 1;
 
     char fileName[200];
+    double startTime = 0.0;
+    double endTime = 0.0;
     cell_t *field;
     PathGenome::_2DDot *checks;
 
@@ -230,7 +229,7 @@ int main(int argc, char const *argv[]) {
     ga.nGenerations(genNumber);
     ga.pMutation(mutRate);
     ga.pCrossover(crossRate);
-    ga.set("el", gaFalse);
+    // ga.set("el", gaFalse);
     // ga.selector(GARankSelector(GASelectionScheme::RAW));
 
     ga.initialize();
@@ -259,24 +258,27 @@ int main(int argc, char const *argv[]) {
     snprintf(fileName, 200, "WorstOfGeneration%d.ppm", ga.generation());
     dump(field, ((PathGenome &) ga.population().worst()).getPath(), fieldSize, checksNumber, fileName);
 
-    // ga.evolve();
-    for (int i = 0; i < ga.nGenerations(); i++) {
-        // getchar();
-        // printf("\nGENERATION %d\n", ga.generation() + 1);
-        // for (int j = 0; j < ga.population().size(); j++) {
-        //     printf("\ngen %d individual %d score %f\n", i, j, ga.population().individual(i).score());
-        //     // snprintf(fileName, 200, "element%d.ppm", i);
-        //     // dump(field, ((PathGenome &) ga.population().individual(i)).getPath(), FIELD_SIZE, fileName);
-        // }
-        ga.step();
-        if (((PathGenome &) ga.population().best()).score() > bestOfAll.score()) {
-            bestOfAll = ga.population().best();
-            bestGen = ga.generation();
-        }
-        printf("\ngeneration %d best score:%f\tworst score:%f\n", i, ga.population().min(), ga.population().max());
-        // snprintf(fileName, 200, "WorstOfGeneration%d.ppm", i);
-        // dump(field, ((PathGenome &) ga.population().worst()).getPath(), FIELD_SIZE, fileName);
-    }
+    startTime = hpc_gettime();
+    ga.evolve();
+    endTime = hpc_gettime();
+    printf("\ntime:%fs\n", endTime - startTime);
+    // for (int i = 0; i < ga.nGenerations(); i++) {
+    //     // getchar();
+    //     // printf("\nGENERATION %d\n", ga.generation() + 1);
+    //     // for (int j = 0; j < ga.population().size(); j++) {
+    //     //     printf("\ngen %d individual %d score %f\n", i, j, ga.population().individual(i).score());
+    //     //     // snprintf(fileName, 200, "element%d.ppm", i);
+    //     //     // dump(field, ((PathGenome &) ga.population().individual(i)).getPath(), FIELD_SIZE, fileName);
+    //     // }
+    //     ga.step();
+    //     // if (((PathGenome &) ga.population().best()).score() > bestOfAll.score()) {
+    //     //     bestOfAll = ga.population().best();
+    //     //     bestGen = ga.generation();
+    //     // }
+    //     printf("\ngeneration %d best score:%f\tworst score:%f\n", i, ga.population().min(), ga.population().max());
+    //     // snprintf(fileName, 200, "WorstOfGeneration%d.ppm", i);
+    //     // dump(field, ((PathGenome &) ga.population().worst()).getPath(), FIELD_SIZE, fileName);
+    // }
 
     // snprintf(fileName, 200, "BestOfAll%d.ppm", bestGen);
     // dump(field, bestOfAll.getPath(), FIELD_SIZE, fileName);

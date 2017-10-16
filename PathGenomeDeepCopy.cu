@@ -11,8 +11,7 @@ void PathGenome::linearInitializer(GAGenome &genome) {
 void PathGenome::randomInitializer(GAGenome &genome) {
     PathGenome &child = (PathGenome &) genome;
     // Create a copy of the checks array.
-    _2DDot *checksCopy = NULL;
-    cudaMallocManaged(&checksCopy, child.checksNum * sizeof(_2DDot));
+    _2DDot *checksCopy = (_2DDot *) malloc(child.checksNum * sizeof(_2DDot));
     for (unsigned int i = 0; i < child.checksNum; i++) {
         checksCopy[i] = child.checks[i];
     }
@@ -31,8 +30,7 @@ int PathGenome::swapMutator(GAGenome &genome, float mutRate) {
     int nSwaps = 0;
     // std::cout << "\nbefore mutation:\n" << child << std::endl;
 
-    _2DDot *tmp = NULL;
-    cudaMallocManaged(&tmp, child.checksNum * sizeof(_2DDot));
+    _2DDot *tmp = (_2DDot *) malloc(child.checksNum * sizeof(_2DDot));
 
     for (unsigned int i = 0; i < child.checksNum; i++) {
         GARandomSeed();
@@ -173,8 +171,32 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
     PathGenome *genome = &((PathGenome &) g);
     dim3 blockSize(genome->checksNum);
 
-    cudaEval<<<1, blockSize>>>(genome);
+    // Allocate memory for the genome object on the device
+    PathGenome *d_genome;
+    cudaMalloc(&d_genome, sizeof(PathGenome));
+
+    // Copy the genome object to the device.
+    cudaMemcpy(d_genome, genome, sizeof(PathGenome), cudaMemcpyHostToDevice);
+
+    // Allocate memory for the genome object's pointers on the device.
+    PathGenome::_2DDot *d_path;
+    float *d_distances;
+    cudaMalloc(&d_path, genome->checksNum * sizeof(PathGenome::_2DDot));
+    cudaMalloc(&d_distances, genome->checksNum * sizeof(float));
+
+    // Copy the genome object' pointers on the device.
+    cudaMemcpy(d_path, genome->getPath(), genome->checksNum * sizeof(PathGenome::_2DDot), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_distances, genome->getDistances(), genome->checksNum * sizeof(float), cudaMemcpyHostToDevice);
+
+    // Copy pointers values correct locations on the device.
+    cudaMemcpy(&(d_genome->path), &d_path, sizeof(PathGenome::_2DDot *), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(d_genome->distances), &d_distances, sizeof(float *), cudaMemcpyHostToDevice);
+
+    cudaEval<<<1, blockSize>>>(d_genome);
     cudaDeviceSynchronize();
+
+    // Copy the object back.
+    cudaMemcpy(genome->distances, d_distances, genome->checksNum * sizeof(float), cudaMemcpyDeviceToHost);
 
     float score = 0.0;
     for (unsigned int i = 0; i < genome->checksNum; i++) {
@@ -194,9 +216,9 @@ float PathGenome::cudaEvaluator(GAGenome &g) {
 
 PathGenome::PathGenome(unsigned int checksNum) {
     this->checksNum = checksNum;
-    cudaMallocManaged(&(this->checks), checksNum * sizeof(_2DDot));
-    cudaMallocManaged(&(this->path), checksNum * sizeof(_2DDot));
-    cudaMallocManaged(&(this->distances), checksNum * sizeof(float));
+    this->checks = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
+    this->path = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
+    this->distances = (float *) malloc(checksNum * sizeof(float));
     for (unsigned int i = 0; i < this->checksNum; i++) {
         this->checks[i].x = 0;
         this->checks[i].y = 0;
@@ -219,9 +241,9 @@ PathGenome::PathGenome(unsigned int checksNum) {
 
 PathGenome::PathGenome(unsigned int checksNum, _2DDot *checks) {
     this->checksNum = checksNum;
-    cudaMallocManaged(&(this->checks), checksNum * sizeof(_2DDot));
-    cudaMallocManaged(&(this->path), checksNum * sizeof(_2DDot));
-    cudaMallocManaged(&(this->distances), checksNum * sizeof(float));
+    this->checks = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
+    this->path = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
+    this->distances = (float *) malloc(checksNum * sizeof(float));
     for (unsigned int i = 0; i < this->checksNum; i++) {
         this->checks[i].x = checks[i].x;
         this->checks[i].y = checks[i].y;
@@ -256,21 +278,21 @@ void PathGenome::copy(const GAGenome &orig) {
     if (original) {
         GAGenome::copy(*original);
         this->checksNum = original->checksNum;
-        cudaMallocManaged(&(this->checks), checksNum * sizeof(_2DDot));
+        this->checks = (_2DDot *) malloc(this->checksNum * sizeof(_2DDot));
         for (unsigned int i = 0; i < this->checksNum; i++) {
             // printf("copy loop\n");
             this->checks[i].x = original->checks[i].x;
             this->checks[i].y = original->checks[i].y;
             this->checks[i].id = original->checks[i].id;
         }
-        cudaMallocManaged(&(this->path), checksNum * sizeof(_2DDot));
+        this->path = (_2DDot *) malloc(this->checksNum * sizeof(_2DDot));
         for (unsigned int i = 0; i < this->checksNum; i++) {
             // printf("copy loop\n");
             this->path[i].x = original->path[i].x;
             this->path[i].y = original->path[i].y;
             this->path[i].id = original->path[i].id;
         }
-        cudaMallocManaged(&(this->distances), checksNum * sizeof(_2DDot));
+        this->distances = (float *) malloc(this->checksNum * sizeof(float));
         for (unsigned int i = 0; i < this->checksNum; i++) {
             // printf("copy loop\n");
             this->distances[i] = original->distances[i];
