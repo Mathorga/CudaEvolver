@@ -33,7 +33,7 @@ public:
     PathGenome(unsigned int checksNum, _2DDot *checks);
     PathGenome(const PathGenome &orig);
 
-    PathGenome &operator=(const GAGenome &arg) {
+    PathGenome &operator = (const GAGenome &arg) {
         copy(arg);
         return *this;
     }

@@ -13,13 +13,20 @@ BIN_DIR			=./bin
 
 RM				=rm -rf
 
-all: PathTest
+all: PathTest PathTestManaged
+
+standard: PathTest
+
+managed: PathTestManaged
 
 %.o : %.cu
 	$(NVCOMP) $(NVCOMP_FLAGS) -c $<
 
 PathTest: PathTest.o PathGenome.o
-	$(NVCOMP) $@.o PathGenome.o -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
+	$(NVCOMP) $^ -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
+
+PathTestManaged: PathTest.o PathGenomeManaged.o
+	$(NVCOMP) $^ -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
 
 clean:
 	$(RM) $(BIN_DIR)/*
