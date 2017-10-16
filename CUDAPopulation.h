@@ -9,18 +9,15 @@ public:
         MINIMIZE = 0,
         MAXIMIZE = 1
     };
-    // typedef float (*Evaluator)();
-    // typedef float (*Evaluator)();
-    // typedef float (*Evaluator)();
-    // typedef float (*Evaluator)();
+
+    CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome &genome, int objective = MAXIMIZE);
+
     void initialize();
     void evolve();
     __global__ void step();
 
     CUDAGenome *best();
     CUDAGenome *worst();
-
-    CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome &genome, int objective = MAXIMIZE);
 
 private:
     __device__ void evaluate();

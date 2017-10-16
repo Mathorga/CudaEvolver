@@ -34,21 +34,35 @@ void CUDAPopulation::evolve() {
 }
 
 __global__ void CUDAPopulation::step() {
+    // Create a temporary population.
+    CUDAGenome *ind;
+    // cudaMalloc(&ind, sizeof(CUDAGenome));
+    memcpy(ind, d_individuals[blockIdx.x], sizeof(CUDAGenome));
+
     // Evaluate.
     evaluate();
-    for () {
-        // Select.
-        CUDAGenome *parent1 = select();
-        CUDAGenome *parent2 = select();
-        // Crossover.
-        CUDAGenome *child = crossover(parent1, parent2);
-        // Mutate.
-        child->mutate();
-        // Add the child to the new pop.
+
+    // Select.
+    // Maybe I need to allocate memory first?
+    CUDAGenome *parent1 = select();
+    CUDAGenome *parent2 = select();
+
+    // Crossover.
+    CUDAGenome *child = crossover(parent1, parent2);
+
+    // Mutate.
+    child->mutate();
+
+    // Synchronize.
+    syncthreads();
+
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        // Copy the best from the old pop to the new one.
         // TODO.
     }
-    // Copy the best from the old pop to the new one.
-    // TODO.
+
+    // Overwrite the old individual with the new one.
+    d_individuals[blockIdx.x] = child[];
 }
 
 __device__ void CUDAPopulation::evaluate() {
