@@ -4,9 +4,10 @@
 class CUDAGenome {
 public:
     virtual void initialize();
-    __device__ virtual evaluate();
-    __device__ virtual void crossover();
+    __device__ virtual float evaluate();
+    __device__ virtual CUDAGenome *crossover(CUDAGenome *partner);
     __device__ virtual void mutate();
+    virtual CUDAGenome *clone();
 
     CUDAGenome(unsigned int xDim, unsigned int yDim = 1, unsigned int zDim = 1) {
         xSize = xDim;
@@ -15,16 +16,16 @@ public:
         score = 0;
     }
 
-    __host__ __device__ unsigned int xSize() {
+    __host__ __device__ unsigned int getXSize() {
         return xSize;
     }
-    __host__ __device__ unsigned int ySize() {
+    __host__ __device__ unsigned int getYSize() {
         return ySize;
     }
-    __host__ __device__ unsigned int zSize() {
+    __host__ __device__ unsigned int getZSize() {
         return zSize;
     }
-    __host__ __device__ float score() {
+    __host__ __device__ float getScore() {
         return score;
     }
 

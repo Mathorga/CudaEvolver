@@ -10,14 +10,21 @@ public:
         MAXIMIZE = 1
     };
 
-    CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome &genome, int objective = MAXIMIZE);
+    CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, int objective = MAXIMIZE);
 
     void initialize();
-    void evolve();
-    __global__ void step();
+    // __device__ void evolve();
+    __device__ void step();
 
     CUDAGenome *best();
     CUDAGenome *worst();
+
+    __host__ __device__ unsigned int getSize() {
+        return size;
+    }
+    __host__ __device__ unsigned int getGenNumber() {
+        return genNumber;
+    }
 
 private:
     __device__ void evaluate();
@@ -31,5 +38,8 @@ private:
     CUDAGenome **individuals;
     CUDAGenome **d_individuals;
 };
+
+__global__ void evolve(CUDAPopulation *pop);
+__global__ void step(CUDAPopulation *pop);
 
 #endif

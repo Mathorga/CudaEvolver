@@ -120,16 +120,18 @@ float serialEvaluator(GAGenome &g) {
 }
 
 
-void populationEvaluator(GAPopulation &pop) {
-    // Copy individuals to device
-    evaluate<<<popSize, checksNumber>>>(pop.individuals());
-    for (int i = 0; i < pop.size(); i++) {
-        pop.individual(i).evaluate(gaTrue);
-    }
-}
-
+// void populationEvaluator(GAPopulation &pop) {
+//     // Copy individuals to device
+//     evaluate<<<popSize, checksNumber>>>(pop.individuals());
+//     for (int i = 0; i < pop.size(); i++) {
+//         pop.individual(i).evaluate(gaTrue);
+//     }
+// }
 
 int main(int argc, char const *argv[]) {
+    hi<<<1, 10>>>();
+    cudaDeviceSynchronize();
+
     unsigned int fieldSize = 500;
     unsigned int checksNumber = 30;
     unsigned int popSize = 100;
@@ -219,7 +221,7 @@ int main(int argc, char const *argv[]) {
     // Create a population.
     GAPopulation population(genome, popSize);
     population.selector(GARankSelector(GASelectionScheme::RAW));
-    population.evaluator(populationEvaluator);
+    // population.evaluator(populationEvaluator);
     // population.evaluator(cudaEvaluator);
     // cudaEvaluator(population);
 
