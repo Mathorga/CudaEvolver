@@ -15,6 +15,7 @@ public:
     __device__ float evaluate();
     __device__ CUDAGenome *crossover(CUDAGenome *partner);
     __device__ void mutate();
+    __device__ void scale(float base);
     CUDAGenome *clone();
 
     CUDAPathGenome(unsigned int checksNum);

@@ -25,6 +25,7 @@ deepcopy: PathTestDeepCopy
 	$(NVCOMP) $(NVCOMP_FLAGS) -c $<
 
 Test: Test.o try.o CUDAPopulation.o CUDAPathGenome.o
+	$(NVCOMP) $(NVLINK_FLAGS) $^ -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)
 
 PathTest: PathTest.o PathGenome.o try.o CUDAPopulation.o CUDAPathGenome.o
 	$(NVCOMP) $(NVLINK_FLAGS) $^ -o $(BIN_DIR)/$@ -L$(GA_LIB_DIR) -lga -lm $(NVCOMP_LIBS)

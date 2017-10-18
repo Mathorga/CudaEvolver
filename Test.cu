@@ -14,7 +14,7 @@
 
 typedef unsigned char cell_t;
 
-enum {
+enum CellContent {
     EMPTY = 0,
     CHECK = 1,
     PATH = 2
@@ -100,8 +100,8 @@ void dump(const cell_t *field, const CUDAPathGenome::_2DDot *path, unsigned int 
 
 
 int main(int argc, char const *argv[]) {
-    hi<<<1, 10>>>();
-    cudaDeviceSynchronize();
+    // hi<<<2, 10>>>();
+    // cudaDeviceSynchronize();
 
     unsigned int fieldSize = 500;
     unsigned int checksNumber = 30;
@@ -120,27 +120,21 @@ int main(int argc, char const *argv[]) {
         printf("Usage: %s [fieldSize [checksNumber [popSize [genNumber [mutRate [crossRate]]]]]]\n", argv[0]);
         return -1;
     }
-
     if (argc > 1) {
         fieldSize = atoi(argv[1]);
     }
-
     if (argc > 2) {
         checksNumber = atoi(argv[2]);
     }
-
     if (argc > 3) {
         popSize = atoi(argv[3]);
     }
-
     if (argc > 4) {
         genNumber = atoi(argv[4]);
     }
-
     if (argc > 5) {
         mutRate = atof(argv[5]);
     }
-
     if (argc > 6) {
         crossRate = atof(argv[6]);
     }

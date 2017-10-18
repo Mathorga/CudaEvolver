@@ -80,6 +80,12 @@ __device__ void CUDAPathGenome::mutate() {
     // TODO.
 }
 
+__device__ void CUDAPathGenome::scale(float baseScore) {
+    if (threadIdx == 0) {
+        fitness = (baseScore - score) + 1;
+    }
+}
+
 CUDAGenome *CUDAPathGenome::clone() {
     return new CUDAPathGenome(checksNumber);
 }

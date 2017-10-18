@@ -1,4 +1,6 @@
 #include "CUDAPopulation.h"
+#include <curand.h>
+#include <curand_kernel.h>
 
 __global__ void evolve(CUDAPopulation *pop) {
     for (unsigned int i = 0; i < pop->getGenNumber(); i++) {
@@ -11,7 +13,7 @@ __global__ void step(CUDAPopulation *pop) {
     pop->step();
 }
 
-CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, int objective) {
+CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, Objective obj) {
     genNumber = genNum;
     currentGen = 0;
     initialized = false;
@@ -46,14 +48,14 @@ void CUDAPopulation::initialize() {
 
 __device__ void CUDAPopulation::step() {
     // Create a temporary population.
-    CUDAGenome *ind;
-    // cudaMalloc(&ind, sizeof(CUDAGenome));
+    CUDAGenome *ind = (CUDAGenome *) malloc(sizeof(CUDAGenome));
     memcpy(ind, d_individuals[blockIdx.x], sizeof(CUDAGenome));
 
     // Evaluate.
     evaluate();
 
     // Select.
+    __syncthreads();
     CUDAGenome *parent1 = select();
     CUDAGenome *parent2 = select();
 
@@ -80,6 +82,50 @@ __device__ void CUDAPopulation::evaluate() {
 }
 
 __device__ CUDAGenome *CUDAPopulation::select() {
+    if (threadIdx.x == 0) {
+        sort();
+        scale();
+    }
+    __syncthreads();
+
     // TODO Implement so that threads of the same block select the same genome.
+    curandState_t state;
+    curand_init((unsigned long) clock(), blockIdx.x, 0, &state);
+    unsigned int random = curand(&state);
+
+
     return individuals[0];
+}
+
+__device__ void CUDAPopulation::sort() {
+    int l;
+    CUDAGenome *tmp = (CUDAGenome *) malloc(sizeof(CUDAGenome));
+
+    if (size % 2 == 0) {
+        l = size / 2;
+    } else {
+        l = (size / 2) + 1;
+    }
+
+    for (int i = 0; i < l; i++) {
+        // Even phase.
+        if (!(blockIdx.x & 1) && (blockIdx.x < (size - 1))) {
+            if (individuals[blockIdx.x]->getScore() > individuals[blockIdx.x + 1]->getScore()) {
+                CUDAGenome *tmp = individuals[blockIdx.x];
+                individuals[blockIdx.x] = individuals[blockIdx.x + 1];
+                individuals[blockIdx.x + 1] = tmp;
+            }
+        }
+        __syncthreads();
+
+        // Odd phase.
+        if ((blockIdx.x & 1) && (blockIdx.x < (size - 1))) {
+            if (individuals[blockIdx.x]->getScore() > individuals[blockIdx.x + 1]->getScore()) {
+                CUDAGenome *tmp = individuals[blockIdx.x];
+                individuals[blockIdx.x] = individuals[blockIdx.x + 1];
+                individuals[blockIdx.x + 1] = tmp;
+            }
+        }
+        __syncthreads();
+    }
 }
