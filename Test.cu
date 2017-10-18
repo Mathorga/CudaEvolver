@@ -100,8 +100,8 @@ void dump(const cell_t *field, const CUDAPathGenome::_2DDot *path, unsigned int 
 
 
 int main(int argc, char const *argv[]) {
-    // hi<<<2, 10>>>();
-    // cudaDeviceSynchronize();
+    hi<<<2, 10>>>();
+    cudaDeviceSynchronize();
 
     unsigned int fieldSize = 500;
     unsigned int checksNumber = 30;

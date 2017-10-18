@@ -5,7 +5,7 @@
 __global__ void hi() {
     curandState_t state;
     curand_init((unsigned long) clock(), blockIdx.x, 0, &state);
-    printf("random1:%u\n", curand(&state));
-    curand_init((unsigned long) clock(), blockIdx.x, 0, &state);
-    printf("random2:%u\n", curand(&state));
+    unsigned int random = curand(&state);
+    float r = curand_uniform(&state);
+    printf("random int:%u\tconverted:%f\tcapped:%f\n", random, (float) random, r);
 }

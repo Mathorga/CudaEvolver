@@ -1,15 +1,16 @@
 #include "CUDAPathGenome.h"
+#include <curand.h>
+#include <curand_kernel.h>
 
 void CUDAPathGenome::initialize() {
     // TODO.
 }
 
-__device__ float CUDAPathGenome::evaluate() {
+__device__ void CUDAPathGenome::evaluate() {
     __shared__ float *tmpDists;
     tmpDists = (float *) malloc(checksNumber * sizeof(float));
 
     int bSize = blockDim.x / 2;
-    float score = 0.0;
 
     // Calculate distances between each check.
     float dx = (float) path[(threadIdx.x + 1) % checksNumber].x - (float) path[threadIdx.x].x;
@@ -28,11 +29,10 @@ __device__ float CUDAPathGenome::evaluate() {
     if (threadIdx.x == 0) {
         score = tmpDists[0];
     }
-    return score;
 }
 
-__device__ CUDAGenome *CUDAPathGenome::crossover(CUDAGenome *partner) {
-    CUDAPathGenome *child;
+__device__ CUDAGenome *CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome *offspring) {
+    CUDAPathGenome *child = (CUDAPathGenome *) offspring;
     CUDAPathGenome *mate = (CUDAPathGenome *) partner;
     __shared__ _2DDot *tmpPath;
     tmpPath = (_2DDot *) malloc(checksNumber * sizeof(_2DDot));

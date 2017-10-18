@@ -6,8 +6,12 @@
 class CUDAPopulation {
 public:
     enum Objective {
-        MINIMIZE = 0,
-        MAXIMIZE = 1
+        MINIMIZE,
+        MAXIMIZE
+    };
+    enum SortBasis {
+        SCORE,
+        FITNESS
     };
 
     CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, Objective obj = MAXIMIZE);
@@ -28,11 +32,11 @@ public:
 
 private:
     __device__ void evaluate();
-    // Selects an individual from the population.
+    // Performs fitness-proportionate selection to get an individual from the population.
     __device__ CUDAGenome *select();
     // Implements ascending odd-even transposition sort on the individuals of the population.
-    __device__ void sort();
     __device__ void scale();
+    __device__ void sort();
 
 private:
     Objective aim;

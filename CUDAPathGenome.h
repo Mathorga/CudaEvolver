@@ -12,8 +12,8 @@ public:
     } _2DDot;
 
     void initialize();
-    __device__ float evaluate();
-    __device__ CUDAGenome *crossover(CUDAGenome *partner);
+    __device__ void evaluate();
+    __device__ CUDAGenome *crossover(CUDAGenome *partner, CUDAGenome *offspring);
     __device__ void mutate();
     __device__ void scale(float base);
     CUDAGenome *clone();
