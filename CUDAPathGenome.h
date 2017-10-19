@@ -13,18 +13,26 @@ public:
 
     void initialize();
     __device__ void evaluate();
-    __device__ CUDAGenome *crossover(CUDAGenome *partner, CUDAGenome *offspring);
+    __device__ void crossover(CUDAGenome *partner, CUDAGenome *offspring);
     __device__ void mutate();
     __device__ void scale(float base);
     CUDAGenome *clone();
+    void allocateIndividuals(CUDAPopulation *pop, unsigned int count);
 
-    CUDAPathGenome(unsigned int checksNum);
+    CUDAPathGenome(_2DDot *checks, unsigned int checksNum);
 
     _2DDot *getPath();
 
-    __device__ void setPath(_2DDot *p);
+    __device__ void setPath(_2DDot *p) {
+        path = p;
+    }
     __device__ void setCheck(unsigned int index, _2DDot check);
-    __device__ _2DDot getCheck(unsigned int index);
+    __device__ _2DDot getCheck(unsigned int index) {
+        return checks[index];
+    }
+    __host__ __device__ _2DDot *getPathCheck(unsigned int index) {
+        return &path[index];
+    }
 
 protected:
     unsigned int checksNumber;

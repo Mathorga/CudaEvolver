@@ -3,12 +3,13 @@
 
 class CUDAGenome {
 public:
-    virtual void initialize();
-    __device__ virtual void evaluate();
-    __device__ virtual CUDAGenome *crossover(CUDAGenome *partner, CUDAGenome *offspring);
-    __device__ virtual void mutate();
-    __device__ virtual void scale(float base);
-    virtual CUDAGenome *clone();
+    virtual void initialize() = 0;
+    __device__ virtual void evaluate() = 0;
+    __device__ virtual void crossover(CUDAGenome *partner, CUDAGenome *offspring) = 0;
+    __device__ virtual void mutate() = 0;
+    __device__ virtual void scale(float base) = 0;
+    virtual CUDAGenome *clone() = 0;
+    virtual void allocateIndividuals(CUDAPopulation *pop, unsigned int count) = 0;
 
     CUDAGenome(unsigned int xDim, unsigned int yDim = 1, unsigned int zDim = 1) {
         xSize = xDim;

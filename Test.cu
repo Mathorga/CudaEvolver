@@ -100,12 +100,12 @@ void dump(const cell_t *field, const CUDAPathGenome::_2DDot *path, unsigned int 
 
 
 int main(int argc, char const *argv[]) {
-    hi<<<2, 10>>>();
-    cudaDeviceSynchronize();
+    // hi<<<2, 10>>>();
+    // cudaDeviceSynchronize();
 
     unsigned int fieldSize = 500;
-    unsigned int checksNumber = 30;
-    unsigned int popSize = 100;
+    unsigned int checksNumber = 15;
+    unsigned int popSize = 50;
     unsigned int genNumber = 1000;
     float mutRate = 0.1;
     float crossRate = 1;
@@ -162,15 +162,26 @@ int main(int argc, char const *argv[]) {
         std::cout << "x:" << checks[i].x << "\ty:" << checks[i].y << "\n";
     }
 
-    CUDAPopulation *population = new CUDAPopulation(popSize, genNumber, new CUDAPathGenome(checksNumber), CUDAPopulation::MINIMIZE);
+    CUDAPopulation *population = new CUDAPopulation(popSize, genNumber, new CUDAPathGenome(checks, checksNumber), CUDAPopulation::MINIMIZE);
     population->initialize();
 
-    CUDAPopulation *d_pop;
-    cudaMalloc(&d_pop, sizeof(CUDAPopulation *));
-    cudaMemcpy(d_pop, population, sizeof(CUDAPopulation *) ,cudaMemcpyHostToDevice);
-    dim3 gridSize(popSize);
+    // First option.
     dim3 blockSize(checksNumber);
-    evolve<<<gridSize, blockSize>>>(population);
+    evolve(population, blockSize);
+
+    // Second option.
+    // CUDAPopulation *d_pop;
+    // cudaMalloc(&d_pop, sizeof(CUDAPopulation *));
+    // cudaMemcpy(d_pop, population, sizeof(CUDAPopulation *) ,cudaMemcpyHostToDevice);
+    // dim3 gridSize(popSize);
+    // dim3 blockSize(checksNumber);
+    // for (unsigned int i = 0; i < population->getSize(); i++) {
+    //     evaluate<<<>>>(d_pop);
+    //     cudaDeviceSynchronize();
+    //     step<<<>>>(d_pop);
+    //     cudaDeviceSynchronize();
+    // }
+    // cudaMemcpy(population, d_pop, sizeof(CUDAPopulation *) ,cudaMemcpyDeviceToHost);
 
     return 0;
 }
