@@ -13,6 +13,18 @@ void evolve(CUDAPopulation *pop, dim3 genomeSize) {
     cudaMalloc(&d_pop, sizeof(CUDAPopulation *));
     cudaMemcpy(d_pop, pop, sizeof(CUDAPopulation *), cudaMemcpyHostToDevice);
 
+    CUDAGenome **d_individuals;
+    d_individuals = (CUDAGenome **) malloc(pop->getSize() * sizeof(CUDAGenome *));
+    for (unsigned int i = 0; i < pop->getSize(); i++) {
+        pop->individuals[0]->allocateCopySingle(&(d_pop->d_individuals[i]), &(pop->individuals[i]), cudaMemcpyHostToDevice);
+    }
+
+    CUDAGenome **tmpD_individuals;
+    cudaMalloc(&tmpD_individuals, pop->getSize() * sizeof(CUDAGenome *));
+    cudaMemcpy(tmpD_individuals, d_individuals, pop->getSize() * sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(&(d_pop->d_individuals), &(pop->individuals), sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+
     // Evolve.
     printf("Starting evolution loop\n");
     for (unsigned int i = 0; i < pop->getGenNumber(); i++) {
@@ -27,13 +39,13 @@ void evolve(CUDAPopulation *pop, dim3 genomeSize) {
 }
 
 __global__ void evaluate(CUDAPopulation *pop) {
-    CUDAPathGenome::_2DDot *check = (CUDAPathGenome::_2DDot *) malloc(sizeof(CUDAPathGenome::_2DDot));
-    check = ((CUDAPathGenome *) pop->getIndividual(blockIdx.x))->getPathCheck(0);
+    // CUDAPathGenome::_2DDot *check = (CUDAPathGenome::_2DDot *) malloc(sizeof(CUDAPathGenome::_2DDot));
+    // check = ((CUDAPathGenome *) pop->getDeviceIndividual(blockIdx.x))->getPathCheck(0);
     if (threadIdx.x == 0) {
         printf("Started evaluation of individual %d\n", blockIdx.x);
-        printf("First check of individual %d: %d\t%d\n", blockIdx.x, check->x, check->y);
+        // printf("First check of individual %d: %d\t%d\n", blockIdx.x, check->x, check->y);
     }
-    pop->getIndividual(blockIdx.x)->evaluate();
+    pop->getDeviceIndividual(blockIdx.x)->evaluate();
 }
 
 __global__ void step(CUDAPopulation *pop) {
@@ -49,7 +61,7 @@ CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGe
     individuals = (CUDAGenome **) malloc(size * sizeof(CUDAGenome *));
     printf("Allocated individuals on host\n");
 
-    genome->allocateIndividuals(this, size);
+    // genome->allocateIndividuals(d_individuals, size);
     // cudaMalloc(&d_individuals, size * sizeof(CUDAGenome *));
 
     printf("Allocated individuals' pointer on device\n");
@@ -70,12 +82,12 @@ void CUDAPopulation::initialize() {
         for (unsigned int i = 0; i < size; i++) {
             individuals[i]->initialize();
             printf("Initialized individual %d on host\n", i);
-            cudaMalloc(&tmp[i], sizeof(CUDAGenome *));
-            cudaMemcpy(tmp[i], individuals[i], sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
-            printf("Copied individual %d on tmp\n", i);
+            // cudaMalloc(&tmp[i], sizeof(CUDAGenome *));
+            // cudaMemcpy(tmp[i], individuals[i], sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
+            // printf("Copied individual %d on tmp\n", i);
         }
-        cudaMemcpy(d_individuals, tmp, size * sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
-        printf("Copied reference to device individuals on device pointer\n");
+        // cudaMemcpy(d_individuals, tmp, size * sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
+        // printf("Copied reference to device individuals on device pointer\n");
         initialized = true;
     }
 }

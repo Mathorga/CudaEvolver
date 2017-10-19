@@ -6,6 +6,9 @@
 
 class CUDAPopulation {
 public:
+    CUDAGenome **individuals;
+    CUDAGenome **offspring;
+    CUDAGenome **d_individuals;
     enum Objective {
         MINIMIZE,
         MAXIMIZE
@@ -49,9 +52,6 @@ private:
     unsigned int size;
     unsigned int genNumber;
     unsigned int currentGen;
-    CUDAGenome **individuals;
-    CUDAGenome **offspring;
-    CUDAGenome **d_individuals;
 };
 
 // Evolve the given population from start to finish.

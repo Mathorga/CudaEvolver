@@ -111,8 +111,14 @@ CUDAGenome *CUDAPathGenome::clone() {
     return new CUDAPathGenome(checks, checksNumber);
 }
 
-void CUDAPathGenome::allocateIndividuals(CUDAPopulation *pop, unsigned int count) {
-    cudaMalloc(&(pop->//TODO));
+void CUDAPathGenome::allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction) {
+    cudaMalloc(deviceIndividuals, count * sizeof(CUDAPathGenome *));
+    cudaMemcpy(*deviceIndividuals, *hostIndividuals, count * sizeof(CUDAPathGenome *), direction);
+}
+
+void CUDAPathGenome::allocateCopySingle(CUDAGenome **deviceIndividual, CUDAGenome **hostIndividual, cudaMemcpyKind direction) {
+    cudaMalloc(deviceIndividual, sizeof(CUDAPathGenome));
+    cudaMemcpy(*(deviceIndividual), *(hostIndividual), sizeof(CUDAPathGenome), direction);
 }
 
 CUDAPathGenome::CUDAPathGenome(_2DDot *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {

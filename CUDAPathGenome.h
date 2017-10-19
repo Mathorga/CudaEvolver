@@ -17,7 +17,8 @@ public:
     __device__ void mutate();
     __device__ void scale(float base);
     CUDAGenome *clone();
-    void allocateIndividuals(CUDAPopulation *pop, unsigned int count);
+    void allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction);
+    void allocateCopySingle(CUDAGenome **deviceIndividual, CUDAGenome **hostIndividual, cudaMemcpyKind direction);
 
     CUDAPathGenome(_2DDot *checks, unsigned int checksNum);
 
