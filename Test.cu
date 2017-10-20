@@ -166,8 +166,8 @@ int main(int argc, char const *argv[]) {
     population->initialize();
 
     // First option.
-    dim3 blockSize(checksNumber);
-    evolve(population, blockSize);
+    dim3 nChecks(checksNumber);
+    evolve(population, nChecks);
 
     // Second option.
     // CUDAPopulation *d_pop;

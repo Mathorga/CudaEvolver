@@ -17,8 +17,8 @@ public:
     __device__ void mutate();
     __device__ void scale(float base);
     CUDAGenome *clone();
-    void allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction);
     void allocateCopySingle(CUDAGenome **deviceIndividual, CUDAGenome **hostIndividual, cudaMemcpyKind direction);
+    void allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction);
 
     CUDAPathGenome(_2DDot *checks, unsigned int checksNum);
 
@@ -33,6 +33,28 @@ public:
     }
     __host__ __device__ _2DDot *getPathCheck(unsigned int index) {
         return &path[index];
+    }
+
+    _2DDot *getHostChecks() {
+        return checks;
+    }
+    _2DDot *getHostPath() {
+        return path;
+    }
+    _2DDot *getDeviceChecks() {
+        return d_checks;
+    }
+    _2DDot *getDevicePath() {
+        return d_path;
+    }
+    _2DDot **getDeviceChecksAddress() {
+        return &d_checks;
+    }
+    _2DDot **getDevicePathAddress() {
+        return &d_path;
+    }
+    float **getDeviceDistancesAddress() {
+        return &d_distances;
     }
 
 protected:

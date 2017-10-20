@@ -6,9 +6,6 @@
 
 class CUDAPopulation {
 public:
-    CUDAGenome **individuals;
-    CUDAGenome **offspring;
-    CUDAGenome **d_individuals;
     enum Objective {
         MINIMIZE,
         MAXIMIZE
@@ -32,11 +29,29 @@ public:
     __host__ __device__ unsigned int getGenNumber() {
         return genNumber;
     }
-    __host__ __device__ CUDAGenome **getDeviceIndividuals() {
+    CUDAGenome *getHostIndividual(unsigned int index) {
+        return individuals[index];
+    }
+    CUDAGenome **getHostIndividuals() {
+        return individuals;
+    }
+    __device__ CUDAGenome **getDeviceIndividuals() {
         return d_individuals;
     }
     __device__ CUDAGenome *getDeviceIndividual(unsigned int index) {
         return d_individuals[index];
+    }
+    CUDAGenome ***getHostIndividualsAddress() {
+        return &individuals;
+    }
+    CUDAGenome **getHostIndividualAddress(unsigned int index) {
+        return &individuals[index];
+    }
+    CUDAGenome ***getDeviceIndividualsAddress() {
+        return &d_individuals;
+    }
+    CUDAGenome **getDeviceIndividualAddress(unsigned int index) {
+        return &d_individuals[index];
     }
 
 private:
@@ -52,6 +67,9 @@ private:
     unsigned int size;
     unsigned int genNumber;
     unsigned int currentGen;
+    CUDAGenome **individuals;
+    CUDAGenome **d_individuals;
+    CUDAGenome **offspring;
 };
 
 // Evolve the given population from start to finish.
