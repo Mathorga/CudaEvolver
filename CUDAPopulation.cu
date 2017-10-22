@@ -17,15 +17,16 @@ void evolve(CUDAPopulation *pop, dim3 genomeSize) {
     CUDAGenome **d_individuals;
     d_individuals = (CUDAGenome **) malloc(pop->getSize() * sizeof(CUDAGenome *));
     for (unsigned int i = 0; i < pop->getSize(); i++) {
-    printf("XXX%d\n", i);
-        pop->getHostIndividual(0)->allocateCopySingle(&(d_individuals[i]), pop->getHostIndividualAddress(i), cudaMemcpyHostToDevice);
+        pop->individuals[0]->allocateCopySingle(&(d_individuals[i]), &(pop->individuals[i]), cudaMemcpyHostToDevice);
     }
+    printf("Copied the individuals on the device\n");
 
     CUDAGenome **tmpD_individuals;
     cudaMalloc(&tmpD_individuals, pop->getSize() * sizeof(CUDAGenome *));
     cudaMemcpy(tmpD_individuals, d_individuals, pop->getSize() * sizeof(CUDAGenome *), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(d_pop->getDeviceIndividualsAddress(), pop->getHostIndividualsAddress(), sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(d_pop->individuals), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+
 
     // Evolve.
     printf("Starting evolution loop\n");
@@ -43,9 +44,11 @@ void evolve(CUDAPopulation *pop, dim3 genomeSize) {
 __global__ void evaluate(CUDAPopulation *pop) {
     if (threadIdx.x == 0) {
         printf("Started evaluation of individual %d\n", blockIdx.x);
-        printf("%d\n", sizeof(pop->getDeviceIndividual(0)));
+        printf("Address:%p\n", pop->individuals[blockIdx.x]);
+        printf("Size:%u\n", pop->individuals[blockIdx.x]->getXSize());
+        printf("checksNumber:%d\n", ((CUDAPathGenome *) (pop->individuals[blockIdx.x]))->getChecksNum());
     }
-    // pop->getDeviceIndividual(blockIdx.x)->evaluate();
+    pop->individuals[blockIdx.x]->evaluate();
 }
 
 __global__ void step(CUDAPopulation *pop) {
@@ -89,7 +92,7 @@ void CUDAPopulation::initialize() {
 __device__ void CUDAPopulation::step() {
     // Create a temporary population.
     CUDAGenome *ind = (CUDAGenome *) malloc(sizeof(CUDAGenome));
-    memcpy(ind, d_individuals[blockIdx.x], sizeof(CUDAGenome));
+    memcpy(ind, individuals[blockIdx.x], sizeof(CUDAGenome));
 
     // Select.
     CUDAGenome *partner = select();

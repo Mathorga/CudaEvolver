@@ -9,9 +9,13 @@ public:
         unsigned int x;
         unsigned int y;
         unsigned int id;
-    } _2DDot;
+    } _Point2D;
 
-    void initialize();
+    _Point2D *checks;
+    _Point2D *path;
+    float *distances;
+
+    __host__ __device__ void initialize();
     __device__ void evaluate();
     __device__ void crossover(CUDAGenome *partner, CUDAGenome *offspring);
     __device__ void mutate();
@@ -20,51 +24,30 @@ public:
     void allocateCopySingle(CUDAGenome **deviceIndividual, CUDAGenome **hostIndividual, cudaMemcpyKind direction);
     void allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction);
 
-    CUDAPathGenome(_2DDot *checks, unsigned int checksNum);
-
-    _2DDot *getPath();
-
-    __device__ void setPath(_2DDot *p) {
-        path = p;
-    }
-    __device__ void setCheck(unsigned int index, _2DDot check);
-    __device__ _2DDot getCheck(unsigned int index) {
+    __host__ __device__ CUDAPathGenome(_Point2D *checks, unsigned int checksNum);
+    __host__ __device__ void setCheck(unsigned int index, _Point2D check);
+    __host__ __device__ _Point2D getCheck(unsigned int index) {
         return checks[index];
     }
-    __host__ __device__ _2DDot *getPathCheck(unsigned int index) {
+    __host__ __device__ _Point2D *getPathCheck(unsigned int index) {
         return &path[index];
     }
 
-    _2DDot *getHostChecks() {
+
+    __host__ __device__ unsigned int getChecksNum() {
+        return checksNumber;
+    }
+    __host__ __device__ _Point2D *getChecks() {
         return checks;
     }
-    _2DDot *getHostPath() {
+    __host__ __device__ _Point2D *getPath() {
         return path;
-    }
-    _2DDot *getDeviceChecks() {
-        return d_checks;
-    }
-    _2DDot *getDevicePath() {
-        return d_path;
-    }
-    _2DDot **getDeviceChecksAddress() {
-        return &d_checks;
-    }
-    _2DDot **getDevicePathAddress() {
-        return &d_path;
-    }
-    float **getDeviceDistancesAddress() {
-        return &d_distances;
     }
 
 protected:
     unsigned int checksNumber;
-    _2DDot *checks;
-    _2DDot *d_checks;
-    _2DDot *path;
-    _2DDot *d_path;
-    float *distances;
-    float *d_distances;
 };
+
+__global__ void createCUDAPathGenome(CUDAGenome **genome, CUDAPathGenome::_Point2D *checks, unsigned int checksNum);
 
 #endif

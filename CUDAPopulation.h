@@ -15,6 +15,9 @@ public:
         FITNESS
     };
 
+    CUDAGenome **individuals;
+    CUDAGenome **offspring;
+
     CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, Objective obj = MAXIMIZE);
 
     void initialize();
@@ -29,31 +32,18 @@ public:
     __host__ __device__ unsigned int getGenNumber() {
         return genNumber;
     }
-    CUDAGenome *getHostIndividual(unsigned int index) {
+    __host__ __device__ CUDAGenome *getIndividual(unsigned int index) {
         return individuals[index];
     }
-    CUDAGenome **getHostIndividuals() {
+    __host__ __device__ CUDAGenome **getIndividuals() {
         return individuals;
     }
-    __device__ CUDAGenome **getDeviceIndividuals() {
-        return d_individuals;
-    }
-    __device__ CUDAGenome *getDeviceIndividual(unsigned int index) {
-        return d_individuals[index];
-    }
-    CUDAGenome ***getHostIndividualsAddress() {
+    __host__ __device__ CUDAGenome ***getIndividualsAddress() {
         return &individuals;
     }
-    CUDAGenome **getHostIndividualAddress(unsigned int index) {
+    __host__ __device__ CUDAGenome **getIndividualAddress(unsigned int index) {
         return &individuals[index];
     }
-    CUDAGenome ***getDeviceIndividualsAddress() {
-        return &d_individuals;
-    }
-    CUDAGenome **getDeviceIndividualAddress(unsigned int index) {
-        return &d_individuals[index];
-    }
-
 private:
     // Performs fitness-proportionate selection to get an individual from the population.
     __device__ CUDAGenome *select();
@@ -67,9 +57,6 @@ private:
     unsigned int size;
     unsigned int genNumber;
     unsigned int currentGen;
-    CUDAGenome **individuals;
-    CUDAGenome **d_individuals;
-    CUDAGenome **offspring;
 };
 
 // Evolve the given population from start to finish.

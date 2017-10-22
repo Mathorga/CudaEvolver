@@ -51,7 +51,7 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
     }
 }
 
-void dump(const cell_t *field, const CUDAPathGenome::_2DDot *path, unsigned int n, unsigned int checksNum, const char *filename) {
+void dump(const cell_t *field, const CUDAPathGenome::_Point2D *path, unsigned int n, unsigned int checksNum, const char *filename) {
     cell_t *fieldCopy = (cell_t *) malloc(n * n * sizeof(cell_t));
     for (unsigned int x = 0; x < n; x++) {
         for (unsigned int y = 0; y < n; y++) {
@@ -114,7 +114,7 @@ int main(int argc, char const *argv[]) {
     double startTime = 0.0;
     double endTime = 0.0;
     cell_t *field;
-    CUDAPathGenome::_2DDot *checks;
+    CUDAPathGenome::_Point2D *checks;
 
     if (argc > 7) {
         printf("Usage: %s [fieldSize [checksNumber [popSize [genNumber [mutRate [crossRate]]]]]]\n", argv[0]);
@@ -141,7 +141,7 @@ int main(int argc, char const *argv[]) {
 
     // Create a field of checks.
     field = (cell_t *) malloc(fieldSize * fieldSize * sizeof(cell_t));
-    checks = (CUDAPathGenome::_2DDot *) malloc(checksNumber * sizeof(CUDAPathGenome::_2DDot));
+    checks = (CUDAPathGenome::_Point2D *) malloc(checksNumber * sizeof(CUDAPathGenome::_Point2D));
 
     for (unsigned int i = 0; i < fieldSize * fieldSize; i++) {
         field[i] = EMPTY;
@@ -161,6 +161,10 @@ int main(int argc, char const *argv[]) {
     for (unsigned int i = 0; i < checksNumber; i++) {
         std::cout << "x:" << checks[i].x << "\ty:" << checks[i].y << "\n";
     }
+
+    CUDAGenome *genome;
+    cudaMalloc(&genome, sizeof(CUDAGenome *));
+    createCUDAPathGenome<<<1, 1>>>(&genome, checks, checksNumber);
 
     CUDAPopulation *population = new CUDAPopulation(popSize, genNumber, new CUDAPathGenome(checks, checksNumber), CUDAPopulation::MINIMIZE);
     population->initialize();

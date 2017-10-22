@@ -4,11 +4,18 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-void CUDAPathGenome::initialize() {
+__global__ void createCUDAPathGenome(CUDAGenome **genome, CUDAPathGenome::_Point2D *checks, unsigned int checksNum) {
+    if (blockIdx.x == 0 && threadIdx.x == 0) {
+        *genome = new CUDAPathGenome(checks, checksNum);
+        (*genome)->evaluate();
+    }
+}
+
+__host__ __device__ void CUDAPathGenome::initialize() {
     printf("Initializing\n");
     srand(time(NULL));
     // Create a copy of the checks array.
-    _2DDot *checksCopy = (_2DDot *) malloc(checksNumber * sizeof(_2DDot));
+    _Point2D *checksCopy = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
     for (unsigned int i = 0; i < checksNumber; i++) {
         checksCopy[i] = checks[i];
     }
@@ -25,11 +32,11 @@ void CUDAPathGenome::initialize() {
     printf("Initialized path on the host\n");
 
     // Copy the initialized path on the device copy.
-    // cudaMalloc(&d_checks, checksNumber * sizeof(_2DDot));
-    // cudaMalloc(&d_path, checksNumber * sizeof(_2DDot));
+    // cudaMalloc(&d_checks, checksNumber * sizeof(_Point2D));
+    // cudaMalloc(&d_path, checksNumber * sizeof(_Point2D));
     // cudaMalloc(&d_distances, checksNumber * sizeof(float));
-    // cudaMemcpy(d_checks, checks, checksNumber * sizeof(_2DDot), cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_path, path, checksNumber * sizeof(_2DDot), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_checks, checks, checksNumber * sizeof(_Point2D), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_path, path, checksNumber * sizeof(_Point2D), cudaMemcpyHostToDevice);
     // printf("Copied path on the device\n");
 }
 
@@ -63,7 +70,7 @@ __device__ void CUDAPathGenome::evaluate() {
 __device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome *offspring) {
     CUDAPathGenome *child = (CUDAPathGenome *) offspring;
     CUDAPathGenome *mate = (CUDAPathGenome *) partner;
-    _2DDot *tmpPath = (_2DDot *) malloc(checksNumber * sizeof(_2DDot));
+    _Point2D *tmpPath = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
     unsigned int midPoint = 0;
 
     if (threadIdx.x == 0) {
@@ -116,20 +123,18 @@ CUDAGenome *CUDAPathGenome::clone() {
 }
 
 void CUDAPathGenome::allocateCopySingle(CUDAGenome **deviceIndividual, CUDAGenome **hostIndividual, cudaMemcpyKind direction) {
+    cudaMalloc(&(((CUDAPathGenome *)(*hostIndividual))->d_checks), (*hostIndividual)->getXSize() * sizeof(_Point2D));
+    cudaMalloc(&(((CUDAPathGenome *)(*hostIndividual))->d_path), (*hostIndividual)->getXSize() * sizeof(_Point2D));
+    cudaMemcpy(((CUDAPathGenome *)(*hostIndividual))->d_checks,
+               ((CUDAPathGenome *) (*hostIndividual))->checks,
+               (*hostIndividual)->getXSize() * sizeof(_Point2D),
+               cudaMemcpyHostToDevice);
+    cudaMemcpy(((CUDAPathGenome *)(*hostIndividual))->d_path,
+               ((CUDAPathGenome *) (*hostIndividual))->path,
+               (*hostIndividual)->getXSize() * sizeof(_Point2D),
+               cudaMemcpyHostToDevice);
     cudaMalloc(deviceIndividual, sizeof(CUDAPathGenome));
-    cudaMemcpy(*deviceIndividual, *hostIndividual, sizeof(CUDAPathGenome), direction);
-
-    cudaMalloc(((CUDAPathGenome *) (*deviceIndividual))->getDeviceChecksAddress(), (*deviceIndividual)->getXSize() * sizeof(_2DDot));
-    cudaMalloc(((CUDAPathGenome *) (*deviceIndividual))->getDevicePathAddress(), (*deviceIndividual)->getXSize() * sizeof(_2DDot));
-    // cudaMalloc(((CUDAPathGenome *) (*deviceIndividual))->getDeviceDistancesAddress(), (*deviceIndividual)->getXSize() * sizeof(float));
-    cudaMemcpy(((CUDAPathGenome *) (*deviceIndividual))->getDeviceChecks(),
-               ((CUDAPathGenome *) (*hostIndividual))->getHostChecks(),
-               (*hostIndividual)->getXSize() * sizeof(_2DDot),
-               cudaMemcpyHostToDevice);
-    cudaMemcpy(((CUDAPathGenome *) (*deviceIndividual))->getDevicePath(),
-               ((CUDAPathGenome *) (*hostIndividual))->getHostPath(),
-               (*hostIndividual)->getXSize() * sizeof(_2DDot),
-               cudaMemcpyHostToDevice);
+    cudaMemcpy(*deviceIndividual, *hostIndividual, sizeof(CUDAPathGenome), cudaMemcpyHostToDevice);
 }
 
 void CUDAPathGenome::allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAGenome ***hostIndividuals, unsigned int count, cudaMemcpyKind direction) {
@@ -137,10 +142,10 @@ void CUDAPathGenome::allocateCopyMultiple(CUDAGenome ***deviceIndividuals, CUDAG
     cudaMemcpy(*deviceIndividuals, *hostIndividuals, count * sizeof(CUDAPathGenome *), direction);
 }
 
-CUDAPathGenome::CUDAPathGenome(_2DDot *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {
+__host__ __device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {
     checksNumber = checksNum;
-    checks = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
-    path = (_2DDot *) malloc(checksNum * sizeof(_2DDot));
+    checks = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
+    path = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     distances = (float *) malloc(checksNum * sizeof(float));
     for (unsigned int i = 0; i < checksNum; i++) {
         checks[i] = checkArray[i];
@@ -148,8 +153,8 @@ CUDAPathGenome::CUDAPathGenome(_2DDot *checkArray, unsigned int checksNum) : CUD
         distances[i] = 0.0;
     }
 
-    // cudaMalloc(&d_checks, checksNum * sizeof(_2DDot));
-    // cudaMalloc(&d_path, checksNum * sizeof(_2DDot));
+    // cudaMalloc(&d_checks, checksNum * sizeof(_Point2D));
+    // cudaMalloc(&d_path, checksNum * sizeof(_Point2D));
     // cudaMalloc(&d_distances, checksNum * sizeof(float));
-    // cudaMemcpy(d_checks, checkArray, checksNum * sizeof(_2DDot), cudaMemcpyHostToDevice);
+    // cudaMemcpy(d_checks, checkArray, checksNum * sizeof(_Point2D), cudaMemcpyHostToDevice);
 }
