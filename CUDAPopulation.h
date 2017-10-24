@@ -17,10 +17,9 @@ public:
 
     CUDAGenome **individuals;
     CUDAGenome **offspring;
+    CUDAGenome *original;
 
-    CUDAPopulation(unsigned int popSize, unsigned int genNum, CUDAGenome *genome, Objective obj = MAXIMIZE);
-
-    void initialize();
+    CUDAPopulation(unsigned int popSize, unsigned int genNum, Objective obj = MAXIMIZE);
     __device__ void step();
 
     CUDAGenome *best();
@@ -58,9 +57,6 @@ private:
     unsigned int genNumber;
     unsigned int currentGen;
 };
-
-// Evolve the given population from start to finish.
-void evolve(CUDAPopulation *pop, dim3 genomeSize);
 
 // Perform an avaluation on the elements of the given population.
 __global__ void evaluate(CUDAPopulation *pop);
