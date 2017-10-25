@@ -10,7 +10,18 @@ __global__ void createCUDAPathGenomePopulation(CUDAPopulation *pop, CUDAPathGeno
 
         genome->initialize();
 
+        // printf("\n");
+        // for (unsigned int i = 0; i < checksNum; i++) {
+        //     printf("x:%u\ty:%u\n", genome->path[i].x, genome->path[i].y);
+        // }
+
         pop->individuals[blockIdx.x] = genome;
+
+        // printf("\n");
+        // for (unsigned int i = 0; i < checksNum; i++) {
+        //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
+        // }
+
         pop->offspring[blockIdx.x] = genome;
     }
 }

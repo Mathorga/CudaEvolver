@@ -21,6 +21,7 @@ public:
     __device__ void mutate();
     __device__ void scale(float base);
     __host__ __device__ CUDAGenome *clone();
+    __host__ __device__ void print();
 
     __host__ __device__ CUDAPathGenome(_Point2D *checks, unsigned int checksNum);
     __host__ __device__ void setCheck(unsigned int index, _Point2D check);

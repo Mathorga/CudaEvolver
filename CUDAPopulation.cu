@@ -11,10 +11,23 @@ __global__ void evaluate(CUDAPopulation *pop) {
     //     printf("Size:%u\n", pop->individuals[blockIdx.x]->getXSize());
     //     printf("checksNumber:%d\n", ((CUDAPathGenome *) (pop->individuals[blockIdx.x]))->getChecksNum());
     // }
+
+    // printf("\n");
+    // for (unsigned int i = 0; i < 5; i++) {
+    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
+    // }
     pop->individuals[blockIdx.x]->evaluate();
+    // printf("\n");
+    // for (unsigned int i = 0; i < 5; i++) {
+    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
+    // }
 }
 
 __global__ void step(CUDAPopulation *pop) {
+    // printf("\n");
+    // for (unsigned int i = 0; i < 5; i++) {
+    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
+    // }
     pop->step();
 }
 
@@ -29,34 +42,60 @@ CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, Object
 }
 
 __device__ void CUDAPopulation::step() {
+    // printf("\n");
+    // for (unsigned int i = 0; i < 5; i++) {
+    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
+    // }
+
     // Create a temporary population.
     CUDAGenome *ind = (CUDAGenome *) malloc(sizeof(CUDAGenome));
     memcpy(ind, individuals[blockIdx.x], sizeof(CUDAGenome));
 
     // Select.
-    printf("Selection\n");
+    // printf("Selection\n");
     CUDAGenome *partner = select();
     __syncthreads();
 
+    // if (threadIdx.x == 0) {
+    //     printf("\n");
+    //     for (unsigned int i = 0; i < 5; i++) {
+    //         printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
+    //     }
+    // }
+
     // Crossover.
-    __syncthreads();
-    printf("Crossover\n");
+    // printf("Crossover\n");
     individuals[blockIdx.x]->crossover(partner, offspring[blockIdx.x]);
+    __syncthreads();
+
+    if (threadIdx.x == 0) {
+        printf("\nIndividual in population\n");
+        individuals[blockIdx.x]->print();
+    }
 
     // Mutate.
-    printf("Mutation\n");
+    // printf("Mutation\n");
     offspring[blockIdx.x]->mutate();
     __syncthreads();
 
     // Overwrite the old individual with the new one.
     if (threadIdx.x == 0) {
         individuals[blockIdx.x] = offspring[blockIdx.x];
+
+        // for (unsigned int i = 0; i < ((CUDAPathGenome *) individuals[blockIdx.x])->getChecksNum(); i++) {
+        //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
+        // }
     }
 
     if (blockIdx.x == 0 && threadIdx.x == 0) {
         // Copy the best from the old pop to the new one.
         // TODO.
     }
+
+    // printf("\n");
+    // for (unsigned int i = 0; i < 5; i++) {
+    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
+    // }
 }
 
 __device__ CUDAGenome *CUDAPopulation::select() {

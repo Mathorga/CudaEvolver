@@ -33,7 +33,7 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
     int err = (dx > dy ? dx : -dy) / 2;
     int e2;
 
-    for(;;){
+    for (;;) {
         if (!(x == x0 && y == y0) && !(x == x1 && y == y1)) {
             field[IDX(x, y, n)] = PATH;
         }
@@ -208,30 +208,44 @@ int main(int argc, char const *argv[]) {
         cudaDeviceSynchronize();
     }
     endTime = hpc_gettime();
+    printf("Execution time (s):%f\n", endTime - startTime);
 
     // Copy the population to the host.
     cudaMemcpy(population, d_pop, sizeof(CUDAPopulation), cudaMemcpyDeviceToHost);
     printf("Copied the population\n");
 
-    CUDAGenome **individuals;
-    individuals = (CUDAGenome **) malloc(popSize * sizeof(CUDAGenome *));
+    CUDAGenome **tmpIndividuals = (CUDAGenome **) malloc(popSize * sizeof(CUDAGenome *));
+    cudaMemcpy(tmpIndividuals, population->individuals, sizeof(CUDAGenome *), cudaMemcpyDeviceToHost);
+    printf("Copied individuals\n");
+
+    population->individuals = tmpIndividuals;
+
+    CUDAPathGenome **individuals;
+    individuals = (CUDAPathGenome **) malloc(popSize * sizeof(CUDAPathGenome *));
     for (unsigned int i = 0; i < popSize; i++) {
-        // cudaMalloc(&(individuals[i]), sizeof(CUDAPathGenome));
+        individuals[i] = new CUDAPathGenome(checks, checksNumber);
+        cudaMalloc(&(individuals[i]->path), checksNumber * sizeof(CUDAPathGenome::_Point2D));
+    }
+    CUDAPathGenome::_Point2D *path = (CUDAPathGenome::_Point2D *) malloc(checksNumber * sizeof(CUDAPathGenome::_Point2D));
+    for (unsigned int i = 0; i < popSize; i++) {
         printf("copying\n");
-        cudaMemcpy(individuals[i], d_pop->individuals[i], sizeof(CUDAPathGenome), cudaMemcpyDeviceToHost);
+        cudaMemcpy(individuals[i], population->individuals[i], sizeof(CUDAPathGenome *), cudaMemcpyDeviceToHost);
+        cudaMemcpy(path, individuals[i]->path, checksNumber * sizeof(CUDAPathGenome::_Point2D), cudaMemcpyDeviceToHost);
+
+        // population->individuals[i] = individuals[i];
         printf("Copied individual %u\n", i);
     }
 
-    tmpD_individuals = (CUDAGenome **) malloc(popSize * sizeof(CUDAGenome *));
-    cudaMemcpy(tmpD_individuals, d_pop->individuals, sizeof(CUDAGenome *), cudaMemcpyDeviceToHost);
-    printf("Copied individuals\n");
+    printf("Individual 0\n");
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        printf("x:%u\ty:%u\n", path[i].x, path[i].y);
+    }
 
-    cudaMemcpy(&(population->individuals), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
-    printf("Copied individuals' reference\n");
+    // cudaMemcpy(&(population->individuals), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+    // printf("Copied individuals' reference\n");
     // cudaMemcpy(&(population->offspring), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
 
 
-    printf("Execution time (s):%f\n", endTime - startTime);
 
     return 0;
 }
