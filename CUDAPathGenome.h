@@ -17,7 +17,7 @@ public:
 
     __device__ void initialize();
     __device__ void evaluate();
-    __device__ void crossover(CUDAGenome *partner, CUDAGenome *offspring);
+    __device__ void crossover(CUDAGenome *partner, CUDAGenome **offspring);
     __device__ void mutate();
     __device__ void scale(float base);
     __host__ __device__ CUDAGenome *clone();

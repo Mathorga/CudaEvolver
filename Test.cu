@@ -175,25 +175,26 @@ int main(int argc, char const *argv[]) {
     CUDAPopulation *population = new CUDAPopulation(popSize, genNumber, CUDAPopulation::MINIMIZE);
 
 
+
     // Allocate the population on the device.
     CUDAPopulation *d_pop;
     cudaMalloc(&d_pop, sizeof(CUDAPopulation));
     cudaMemcpy(d_pop, population, sizeof(CUDAPopulation), cudaMemcpyHostToDevice);
 
     CUDAGenome **d_individuals;
-    d_individuals = (CUDAGenome **) malloc(popSize * sizeof(CUDAGenome *));
-    for (unsigned int i = 0; i < popSize; i++) {
-        cudaMalloc(&(d_individuals[i]), sizeof(CUDAPathGenome));
-    }
+    CUDAGenome **d_offspring;
+    cudaMalloc(&d_individuals, popSize * sizeof(CUDAGenome *));
+    cudaMalloc(&d_offspring, popSize * sizeof(CUDAGenome *));
 
-    CUDAGenome **tmpD_individuals;
-    cudaMalloc(&tmpD_individuals, popSize * sizeof(CUDAGenome *));
+    cudaMemcpy(&(d_pop->individuals), &d_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+    cudaMemcpy(&(d_pop->offspring), &d_offspring, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(&(d_pop->individuals), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_pop->offspring), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
+
 
     // Copy the checks on the device.
     cudaMemcpy(d_checks, checks, checksNumber * sizeof(CUDAPathGenome::_Point2D), cudaMemcpyHostToDevice);
+
+
 
     dim3 gridSize(popSize);
     dim3 blockSize(checksNumber);

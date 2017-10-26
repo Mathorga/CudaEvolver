@@ -65,13 +65,8 @@ __device__ void CUDAPopulation::step() {
 
     // Crossover.
     // printf("Crossover\n");
-    individuals[blockIdx.x]->crossover(partner, offspring[blockIdx.x]);
+    individuals[blockIdx.x]->crossover(partner, &(offspring[blockIdx.x]));
     __syncthreads();
-
-    if (threadIdx.x == 0) {
-        printf("\nIndividual in population\n");
-        individuals[blockIdx.x]->print();
-    }
 
     // Mutate.
     // printf("Mutation\n");
@@ -92,10 +87,10 @@ __device__ void CUDAPopulation::step() {
         // TODO.
     }
 
-    // printf("\n");
-    // for (unsigned int i = 0; i < 5; i++) {
-    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
-    // }
+    if (threadIdx.x == 0) {
+        printf("\nIndividual on device\n");
+        individuals[0]->print();
+    }
 }
 
 __device__ CUDAGenome *CUDAPopulation::select() {

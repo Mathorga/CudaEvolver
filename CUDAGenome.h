@@ -5,7 +5,7 @@ class CUDAGenome {
 public:
     __device__ virtual void initialize() = 0;
     __device__ virtual void evaluate() = 0;
-    __device__ virtual void crossover(CUDAGenome *partner, CUDAGenome *offspring) = 0;
+    __device__ virtual void crossover(CUDAGenome *partner, CUDAGenome **offspring) = 0;
     __device__ virtual void mutate() = 0;
     __device__ virtual void scale(float base) = 0;
     __host__ __device__ virtual CUDAGenome *clone() = 0;

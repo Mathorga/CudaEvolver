@@ -7,6 +7,7 @@
 __global__ void createCUDAPathGenomePopulation(CUDAPopulation *pop, CUDAPathGenome::_Point2D *checks, unsigned int checksNum) {
     if (threadIdx.x == 0) {
         CUDAPathGenome *genome = new CUDAPathGenome(checks, checksNum);
+        CUDAPathGenome *child = new CUDAPathGenome(checks, checksNum);
 
         genome->initialize();
 
@@ -22,7 +23,7 @@ __global__ void createCUDAPathGenomePopulation(CUDAPopulation *pop, CUDAPathGeno
         //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
         // }
 
-        pop->offspring[blockIdx.x] = genome;
+        pop->offspring[blockIdx.x] = child;
     }
 }
 

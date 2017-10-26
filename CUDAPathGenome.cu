@@ -64,43 +64,22 @@ __device__ void CUDAPathGenome::evaluate() {
     }
 }
 
-__device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome *offspring) {
-    CUDAPathGenome *child = (CUDAPathGenome *) offspring;
+__device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome **offspring) {
+    CUDAPathGenome *child = (CUDAPathGenome *) (*offspring);
     CUDAPathGenome *mate = (CUDAPathGenome *) partner;
 
-    // if (threadIdx.x == 0) {
-    //     printf("\nparent1\n");
-    //     for (unsigned int i = 0; i < 5; i++) {
-    //         printf("x:%u\ty:%u\n", path[i].x, path[i].y);
-    //     }
-    // }
-    // if (threadIdx.x == 0) {
-    //     printf("parent2\n");
-    //     for (unsigned int i = 0; i < 5; i++) {
-    //         printf("x:%u\ty:%u\n", mate->path[i].x, mate->path[i].y);
-    //     }
-    // }
-    // if (threadIdx.x == 0) {
-    //     printf("child\n");
-    //     for (unsigned int i = 0; i < 5; i++) {
-    //         printf("x:%u\ty:%u\n", child->path[i].x, child->path[i].y);
-    //     }
-    // }
-
-    _Point2D *tmpPath = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
+    // _Point2D *tmpPath = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
     unsigned int midPoint = 0;
 
     curandState_t state;
-    curand_init((unsigned long) clock(), blockIdx.x, 0, &state);
+    curand_init((unsigned long) clock(), 0, 0, &state);
     midPoint = curand(&state) % (checksNumber - 1);
 
     // Pick from parent 1.
     if (threadIdx.x <= midPoint) {
-        tmpPath[threadIdx.x] = path[threadIdx.x];
+        child->path[threadIdx.x] = path[threadIdx.x];
     }
     __syncthreads();
-    // printf("midPoint:%u\n", midPoint);
-    // printf("x:%u\ty:%u\n", tmpPath[threadIdx.x].x, tmpPath[threadIdx.x].y);
 
     // Pick from parent 2.
     if (threadIdx.x == 0) {
@@ -108,27 +87,19 @@ __device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome *offsp
             for (unsigned int j = 0; j < checksNumber; j++) {
                 bool insert = true;
                 for (unsigned int k = 0; k <= midPoint; k++) {
-                    if (mate->path[j].id == tmpPath[k].id) {
+                    if (mate->path[j].id == child->path[k].id) {
                         insert = false;
                         break;
                     }
                 }
                 if (insert) {
-                    tmpPath[i] = mate->path[j];
+                    child->path[i] = mate->path[j];
                     i++;
                 }
             }
         }
     }
     __syncthreads();
-    child->path[threadIdx.x] = tmpPath[threadIdx.x];
-    __syncthreads();
-    // if (threadIdx.x == 0) {
-    //     printf("\n");
-    //     for (unsigned int i = 0; i < 5; i++) {
-    //         printf("x:%u\ty:%u\n", child->path[i].x, child->path[i].y);
-    //     }
-    // }
 }
 
 __device__ void CUDAPathGenome::mutate() {
