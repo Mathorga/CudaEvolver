@@ -27,7 +27,6 @@ __device__ void CUDAPathGenome::initialize() {
         // Randomly initialize path;
         for (unsigned int i = 0; i < checksNumber; i++) {
             int index = curand(&state) % (checksNumber - i);
-            // printf("Index:%d out of %d\n", index, checksNumber - i);
             path[i] = checksCopy[index];
             for (unsigned int j = index; j < checksNumber - i; j++) {
                 checksCopy[j] = checksCopy[j + 1];
@@ -121,29 +120,38 @@ __host__ __device__ void CUDAPathGenome::print() {
 
     if (threadIdx.x == 0) {
         for (unsigned int i = 0; i < checksNumber; i++) {
-            printf("x:%u\ty:%u\n", path[i].x, path[i].y);
+            printf("x:%u\ty:%u\tid:%d\n", path[i].x, path[i].y, path[i].id);
         }
     }
 
     #else
 
     for (unsigned int i = 0; i < checksNumber; i++) {
-        printf("x:%u\ty:%u\n", path[i].x, path[i].y);
+        printf("x:%u\ty:%u\tid:%d\n", path[i].x, path[i].y, path[i].id);
     }
 
     #endif
 };
 
-__host__ __device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {
+__host__ __device__ virtual void output(char *string) {
+    for (int i = 0; i < COORD_DIGITS; i++) {
+        string[threadIdx.x * POINT_DIGITS + i] = itoa(path[threadIdx.x].x / powf(10, COORD_DIGITS - i));
+    }
+}
+
+
+__host__ __device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigned int checksNum, unsigned int fieldSize) : CUDAGenome(checksNum) {
     checksNumber = checksNum;
     checks = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     path = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     distances = (float *) malloc(checksNum * sizeof(float));
     for (unsigned int i = 0; i < checksNum; i++) {
         checks[i] = checkArray[i];
+        _Point2D newCheck;
+        path[i] = newCheck;
         // printf("Passed Checks\n");
         // printf("x:%d\ty:%d\n", checkArray[i].x, checkArray[i].y);
-        path[i] = checkArray[i];
         distances[i] = 0.0;
     }
+    // print();
 }

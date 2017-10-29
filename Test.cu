@@ -7,6 +7,14 @@
 #include "CUDAPathGenomeUtils.h"
 #include "try.h"
 
+#define cudaCheckError() {                                                                                  \
+            cudaError_t e = cudaGetLastError();                                                             \
+            if (e != cudaSuccess) {                                                                         \
+                printf("Cuda failure %s(%d): %d(%s)\n", __FILE__, __LINE__ - 1, e, cudaGetErrorString(e));  \
+                exit(0);                                                                                    \
+            }                                                                                               \
+        }
+
 // Translates bidimensional indexes to a monodimensional one.
 // |i| is the column index.
 // |j| is the row index.
@@ -196,55 +204,35 @@ int main(int argc, char const *argv[]) {
 
 
 
-    dim3 gridSize(popSize);
-    dim3 blockSize(checksNumber);
-    createCUDAPathGenomePopulation<<<gridSize, 1>>>(d_pop, d_checks, checksNumber);
+    dim3 d_popSize(popSize);
+    dim3 d_checksNum(checksNumber);
+    createCUDAPathGenomePopulation<<<d_popSize, 1>>>(d_pop, d_checks, checksNumber);
     cudaDeviceSynchronize();
 
+    printf("\nExecution:\n");
     startTime = hpc_gettime();
     for (unsigned int i = 0; i < genNumber; i++) {
-        evaluate<<<gridSize, blockSize>>>(d_pop);
+        evaluate<<<d_popSize, d_checksNum>>>(d_pop);
         cudaDeviceSynchronize();
-        step<<<gridSize, blockSize>>>(d_pop);
+        sort<<<1, d_popSize>>>(d_pop);
+        cudaDeviceSynchronize();
+        step<<<d_popSize, d_checksNum>>>(d_pop);
         cudaDeviceSynchronize();
     }
     endTime = hpc_gettime();
-    printf("Execution time (s):%f\n", endTime - startTime);
+    printf("Execution time (s):%f\n\n", endTime - startTime);
 
-    // Copy the population to the host.
-    cudaMemcpy(population, d_pop, sizeof(CUDAPopulation), cudaMemcpyDeviceToHost);
-    printf("Copied the population\n");
 
-    CUDAGenome **tmpIndividuals = (CUDAGenome **) malloc(popSize * sizeof(CUDAGenome *));
-    cudaMemcpy(tmpIndividuals, population->individuals, sizeof(CUDAGenome *), cudaMemcpyDeviceToHost);
-    printf("Copied individuals\n");
 
-    population->individuals = tmpIndividuals;
 
-    CUDAPathGenome **individuals;
-    individuals = (CUDAPathGenome **) malloc(popSize * sizeof(CUDAPathGenome *));
-    for (unsigned int i = 0; i < popSize; i++) {
-        individuals[i] = new CUDAPathGenome(checks, checksNumber);
-        cudaMalloc(&(individuals[i]->path), checksNumber * sizeof(CUDAPathGenome::_Point2D));
-    }
-    CUDAPathGenome::_Point2D *path = (CUDAPathGenome::_Point2D *) malloc(checksNumber * sizeof(CUDAPathGenome::_Point2D));
-    for (unsigned int i = 0; i < popSize; i++) {
-        printf("copying\n");
-        cudaMemcpy(individuals[i], population->individuals[i], sizeof(CUDAPathGenome *), cudaMemcpyDeviceToHost);
-        cudaMemcpy(path, individuals[i]->path, checksNumber * sizeof(CUDAPathGenome::_Point2D), cudaMemcpyDeviceToHost);
+    char *d_string;
+    cudaMalloc(&d_string, checksNumber * POINT_DIGITS);
 
-        // population->individuals[i] = individuals[i];
-        printf("Copied individual %u\n", i);
-    }
+    outputBest<<<1, d_checksNum>>>(d_pop, d_string);
 
-    printf("Individual 0\n");
-    for (unsigned int i = 0; i < checksNumber; i++) {
-        printf("x:%u\ty:%u\n", path[i].x, path[i].y);
-    }
+    char *string = (char *) malloc(checksNumber * POINT_DIGITS);
+    cudaMemcpy(string, d_string, checksNumber * POINT_DIGITS, cudaMemcpyDeviceToHost);
 
-    // cudaMemcpy(&(population->individuals), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
-    // printf("Copied individuals' reference\n");
-    // cudaMemcpy(&(population->offspring), &tmpD_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
 
 
 

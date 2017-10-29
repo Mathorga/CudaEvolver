@@ -3,12 +3,15 @@
 
 #include "CUDAGenome.h"
 
+#define COORD_DIGITS 5
+#define POINT_DIGITS 2 * COORD_DIGITS * sizeof(char)
+
 class CUDAPathGenome : public CUDAGenome {
 public:
     typedef struct {
-        unsigned int x;
-        unsigned int y;
-        unsigned int id;
+        unsigned int x = 0;
+        unsigned int y = 0;
+        int id = -1;
     } _Point2D;
 
     _Point2D *checks;
@@ -22,6 +25,7 @@ public:
     __device__ void scale(float base);
     __host__ __device__ CUDAGenome *clone();
     __host__ __device__ void print();
+    __host__ __device__ virtual void output(char **string);
 
     __host__ __device__ CUDAPathGenome(_Point2D *checks, unsigned int checksNum);
     __host__ __device__ void setCheck(unsigned int index, _Point2D check);

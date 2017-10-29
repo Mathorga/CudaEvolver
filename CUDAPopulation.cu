@@ -5,31 +5,64 @@
 #include <curand_kernel.h>
 
 __global__ void evaluate(CUDAPopulation *pop) {
-    // if (threadIdx.x == 0) {
-    //     printf("Started evaluation of individual %d\n", blockIdx.x);
-    //     printf("Address:%p\n", pop->individuals[blockIdx.x]);
-    //     printf("Size:%u\n", pop->individuals[blockIdx.x]->getXSize());
-    //     printf("checksNumber:%d\n", ((CUDAPathGenome *) (pop->individuals[blockIdx.x]))->getChecksNum());
-    // }
-
-    // printf("\n");
-    // for (unsigned int i = 0; i < 5; i++) {
-    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
-    // }
     pop->individuals[blockIdx.x]->evaluate();
-    // printf("\n");
-    // for (unsigned int i = 0; i < 5; i++) {
-    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
-    // }
+    pop->scale();
+}
+
+__global__ void sort() {
+    if (blockIdx.x == 0) {
+        int l;
+        CUDAGenome *tmp = (CUDAGenome *) malloc(sizeof(CUDAGenome));
+
+        if (size % 2 == 0) {
+            l = size / 2;
+        } else {
+            l = (size / 2) + 1;
+        }
+
+        for (int i = 0; i < l; i++) {
+            // Even phase.
+            if (!(threadIdx.x & 1) && (threadIdx.x < (size - 1))) {
+                if (individuals[threadIdx.x]->getFitness() > individuals[threadIdx.x + 1]->getFitness()) {
+                    CUDAGenome *tmp = individuals[threadIdx.x];
+                    individuals[threadIdx.x] = individuals[threadIdx.x + 1];
+                    individuals[threadIdx.x + 1] = tmp;
+                }
+            }
+            __syncthreads();
+
+            // Odd phase.
+            if ((threadIdx.x & 1) && (threadIdx.x < (size - 1))) {
+                if (individuals[threadIdx.x]->getFitness() > individuals[threadIdx.x + 1]->getFitness()) {
+                    CUDAGenome *tmp = individuals[threadIdx.x];
+                    individuals[threadIdx.x] = individuals[threadIdx.x + 1];
+                    individuals[threadIdx.x + 1] = tmp;
+                }
+            }
+            __syncthreads();
+        }
+    }
 }
 
 __global__ void step(CUDAPopulation *pop) {
-    // printf("\n");
-    // for (unsigned int i = 0; i < 5; i++) {
-    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) pop->individuals[blockIdx.x])->path[i].y);
-    // }
     pop->step();
 }
+
+__global__ void outputBest(CUDAPopulation *pop, *string) {
+    if (blockIdx.x == 0) {
+        // Output the last (best) individual.
+        pop->individuals[pop->getSize() - 1]->output(fileName);
+    }
+}
+
+__global__ void outputWorst(CUDAPopulation *pop, char *string) {
+    if (blockIdx.x == 0) {
+        // Output the first (worst) individual.
+        pop->individuals[0]->output(string);
+    }
+}
+
+
 
 CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, Objective obj) {
     // printf("Starting creation\n");
@@ -86,22 +119,12 @@ __device__ void CUDAPopulation::step() {
         // Copy the best from the old pop to the new one.
         // TODO.
     }
-
-    if (threadIdx.x == 0) {
-        printf("\nIndividual on device\n");
-        individuals[0]->print();
-    }
+    __syncthreads();
 }
 
 __device__ CUDAGenome *CUDAPopulation::select() {
     float totalFitness = 0.0;
     float previousProb = 0.0;
-
-    if (threadIdx.x == 0) {
-        scale();
-        sort();
-    }
-    __syncthreads();
 
     // Threads of the same block select the same genome by generating the same pseudo-random number.
     curandState_t state;
@@ -127,37 +150,4 @@ __device__ CUDAGenome *CUDAPopulation::select() {
 
 __device__ void CUDAPopulation::scale() {
     individuals[blockIdx.x]->scale(individuals[size - 1]->getScore());
-}
-
-__device__ void CUDAPopulation::sort() {
-    int l;
-    CUDAGenome *tmp = (CUDAGenome *) malloc(sizeof(CUDAGenome));
-
-    if (size % 2 == 0) {
-        l = size / 2;
-    } else {
-        l = (size / 2) + 1;
-    }
-
-    for (int i = 0; i < l; i++) {
-        // Even phase.
-        if (!(blockIdx.x & 1) && (blockIdx.x < (size - 1))) {
-            if (individuals[blockIdx.x]->getFitness() > individuals[blockIdx.x + 1]->getFitness()) {
-                CUDAGenome *tmp = individuals[blockIdx.x];
-                individuals[blockIdx.x] = individuals[blockIdx.x + 1];
-                individuals[blockIdx.x + 1] = tmp;
-            }
-        }
-        __syncthreads();
-
-        // Odd phase.
-        if ((blockIdx.x & 1) && (blockIdx.x < (size - 1))) {
-            if (individuals[blockIdx.x]->getFitness() > individuals[blockIdx.x + 1]->getFitness()) {
-                CUDAGenome *tmp = individuals[blockIdx.x];
-                individuals[blockIdx.x] = individuals[blockIdx.x + 1];
-                individuals[blockIdx.x + 1] = tmp;
-            }
-        }
-        __syncthreads();
-    }
 }
