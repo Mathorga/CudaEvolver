@@ -111,11 +111,7 @@ __device__ void CUDAPathGenome::scale(float baseScore) {
     }
 }
 
-__host__ __device__ CUDAGenome *CUDAPathGenome::clone() {
-    return new CUDAPathGenome(checks, checksNumber);
-}
-
-__host__ __device__ void CUDAPathGenome::print() {
+__device__ void CUDAPathGenome::print() {
     #ifdef __CUDA_ARCH__
 
     if (threadIdx.x == 0) {
@@ -133,14 +129,15 @@ __host__ __device__ void CUDAPathGenome::print() {
     #endif
 };
 
-__host__ __device__ virtual void output(char *string) {
-    for (int i = 0; i < COORD_DIGITS; i++) {
-        string[threadIdx.x * POINT_DIGITS + i] = itoa(path[threadIdx.x].x / powf(10, COORD_DIGITS - i));
+__device__ void CUDAPathGenome::output(char *string) {
+    for (int i = 0; i < COORD_SIZE; i++) {
+        memcpy(&(string[threadIdx.x * POINT_SIZE]), &(path[threadIdx.x].x), COORD_SIZE);
+        memcpy(&(string[threadIdx.x * POINT_SIZE + COORD_SIZE]), &(path[threadIdx.x].y), COORD_SIZE);
     }
 }
 
 
-__host__ __device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigned int checksNum, unsigned int fieldSize) : CUDAGenome(checksNum) {
+__device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {
     checksNumber = checksNum;
     checks = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     path = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
@@ -149,9 +146,6 @@ __host__ __device__ CUDAPathGenome::CUDAPathGenome(_Point2D *checkArray, unsigne
         checks[i] = checkArray[i];
         _Point2D newCheck;
         path[i] = newCheck;
-        // printf("Passed Checks\n");
-        // printf("x:%d\ty:%d\n", checkArray[i].x, checkArray[i].y);
         distances[i] = 0.0;
     }
-    // print();
 }

@@ -226,14 +226,18 @@ int main(int argc, char const *argv[]) {
 
 
     char *d_string;
-    cudaMalloc(&d_string, checksNumber * POINT_DIGITS);
+    cudaMalloc(&d_string, checksNumber * POINT_SIZE);
 
     outputBest<<<1, d_checksNum>>>(d_pop, d_string);
 
-    char *string = (char *) malloc(checksNumber * POINT_DIGITS);
-    cudaMemcpy(string, d_string, checksNumber * POINT_DIGITS, cudaMemcpyDeviceToHost);
-
-
+    char *string = (char *) malloc(checksNumber * POINT_SIZE);
+    cudaMemcpy(string, d_string, checksNumber * POINT_SIZE, cudaMemcpyDeviceToHost);
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        memcpy(&(checks[i].x), &(string[i * POINT_SIZE]), COORD_SIZE);
+        memcpy(&(checks[i].y), &(string[i * POINT_SIZE + COORD_SIZE]), COORD_SIZE);
+        printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
+    }
+    dump(field, checks, fieldSize, checksNumber, "final.ppm");
 
 
     return 0;

@@ -9,34 +9,34 @@ __global__ void evaluate(CUDAPopulation *pop) {
     pop->scale();
 }
 
-__global__ void sort() {
+__global__ void sort(CUDAPopulation *pop) {
     if (blockIdx.x == 0) {
         int l;
         CUDAGenome *tmp = (CUDAGenome *) malloc(sizeof(CUDAGenome));
 
-        if (size % 2 == 0) {
-            l = size / 2;
+        if (pop->getSize() % 2 == 0) {
+            l = pop->getSize() / 2;
         } else {
-            l = (size / 2) + 1;
+            l = (pop->getSize() / 2) + 1;
         }
 
         for (int i = 0; i < l; i++) {
             // Even phase.
-            if (!(threadIdx.x & 1) && (threadIdx.x < (size - 1))) {
-                if (individuals[threadIdx.x]->getFitness() > individuals[threadIdx.x + 1]->getFitness()) {
-                    CUDAGenome *tmp = individuals[threadIdx.x];
-                    individuals[threadIdx.x] = individuals[threadIdx.x + 1];
-                    individuals[threadIdx.x + 1] = tmp;
+            if (!(threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
+                if (pop->individuals[threadIdx.x]->getFitness() > pop->individuals[threadIdx.x + 1]->getFitness()) {
+                    CUDAGenome *tmp = pop->individuals[threadIdx.x];
+                    pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
+                    pop->individuals[threadIdx.x + 1] = tmp;
                 }
             }
             __syncthreads();
 
             // Odd phase.
-            if ((threadIdx.x & 1) && (threadIdx.x < (size - 1))) {
-                if (individuals[threadIdx.x]->getFitness() > individuals[threadIdx.x + 1]->getFitness()) {
-                    CUDAGenome *tmp = individuals[threadIdx.x];
-                    individuals[threadIdx.x] = individuals[threadIdx.x + 1];
-                    individuals[threadIdx.x + 1] = tmp;
+            if ((threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
+                if (pop->individuals[threadIdx.x]->getFitness() > pop->individuals[threadIdx.x + 1]->getFitness()) {
+                    CUDAGenome *tmp = pop->individuals[threadIdx.x];
+                    pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
+                    pop->individuals[threadIdx.x + 1] = tmp;
                 }
             }
             __syncthreads();
@@ -48,10 +48,10 @@ __global__ void step(CUDAPopulation *pop) {
     pop->step();
 }
 
-__global__ void outputBest(CUDAPopulation *pop, *string) {
+__global__ void outputBest(CUDAPopulation *pop, char *string) {
     if (blockIdx.x == 0) {
         // Output the last (best) individual.
-        pop->individuals[pop->getSize() - 1]->output(fileName);
+        pop->individuals[pop->getSize() - 1]->output(string);
     }
 }
 

@@ -20,6 +20,8 @@ public:
     CUDAGenome *original;
 
     CUDAPopulation(unsigned int popSize, unsigned int genNum, Objective obj = MAXIMIZE);
+    // Scales the individuals' scores to fitnesses.
+    __device__ void scale();
     __device__ void step();
 
     CUDAGenome *best();
@@ -46,10 +48,6 @@ public:
 private:
     // Performs fitness-proportionate selection to get an individual from the population.
     __device__ CUDAGenome *select();
-    // Scales the individuals' scores to fitnesses.
-    __device__ void scale();
-    // Implements ascending odd-even transposition sort on the individuals of the population.
-    __device__ void sort();
 
 private:
     Objective aim;
@@ -61,6 +59,9 @@ private:
 
 // Perform an avaluation on the elements of the given population.
 __global__ void evaluate(CUDAPopulation *pop);
+
+// Implements ascending odd-even transposition sort on the individuals of the population.
+__global__ void sort(CUDAPopulation *pop);
 
 // Perform an evolution step (selection, crossover, mutation, replacement) on the given population.
 __global__ void step(CUDAPopulation *pop);

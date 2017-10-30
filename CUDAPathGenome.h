@@ -3,8 +3,8 @@
 
 #include "CUDAGenome.h"
 
-#define COORD_DIGITS 5
-#define POINT_DIGITS 2 * COORD_DIGITS * sizeof(char)
+#define COORD_SIZE sizeof(unsigned int)
+#define POINT_SIZE 2 * COORD_SIZE
 
 class CUDAPathGenome : public CUDAGenome {
 public:
@@ -23,25 +23,24 @@ public:
     __device__ void crossover(CUDAGenome *partner, CUDAGenome **offspring);
     __device__ void mutate();
     __device__ void scale(float base);
-    __host__ __device__ CUDAGenome *clone();
-    __host__ __device__ void print();
-    __host__ __device__ virtual void output(char **string);
+    __device__ void print();
+    __device__ void output(char *string);
 
-    __host__ __device__ CUDAPathGenome(_Point2D *checks, unsigned int checksNum);
-    __host__ __device__ void setCheck(unsigned int index, _Point2D check);
-    __host__ __device__ _Point2D getCheck(unsigned int index) {
+    __device__ CUDAPathGenome(_Point2D *checks, unsigned int checksNum);
+    __device__ void setCheck(unsigned int index, _Point2D check);
+    __device__ _Point2D getCheck(unsigned int index) {
         return checks[index];
     }
-    __host__ __device__ _Point2D *getPathCheck(unsigned int index) {
+    __device__ _Point2D *getPathCheck(unsigned int index) {
         return &path[index];
     }
-    __host__ __device__ _Point2D *getChecks() {
+    __device__ _Point2D *getChecks() {
         return checks;
     }
-    __host__ __device__ _Point2D *getPath() {
+    __device__ _Point2D *getPath() {
         return path;
     }
-    __host__ __device__ unsigned int getChecksNum() {
+    __device__ unsigned int getChecksNum() {
         return checksNumber;
     }
 
