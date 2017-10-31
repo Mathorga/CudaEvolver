@@ -45,9 +45,9 @@ __global__ void sort(CUDAPopulation *pop) {
             }
             __syncthreads();
         }
-        if (threadIdx.x == 0) {
-            printf("Sorted\n");
-        }
+        // if (threadIdx.x == 0) {
+        //     printf("Sorted\n");
+        // }
     }
 }
 
@@ -106,11 +106,11 @@ __device__ void CUDAPopulation::step() {
     // Overwrite the old individual with the new one.
     if (threadIdx.x == 0) {
         individuals[blockIdx.x] = offspring[blockIdx.x];
+        offspring[blockIdx.x] = individuals[blockIdx.x]->clone();
     }
 
     if (blockIdx.x == 0 && threadIdx.x == 0) {
-        // Copy the best from the old pop to the new one.
-        // TODO.
+        // TODO Copy the best from the old pop to the new one.
     }
     __syncthreads();
 }

@@ -32,9 +32,6 @@ __device__ void CUDAPathGenome::initialize() {
                 checksCopy[j] = checksCopy[j + 1];
             }
         }
-        printf("Initialized\n");
-        // print();
-        // printf("Initialized path\n");
     }
 }
 
@@ -68,6 +65,9 @@ __device__ void CUDAPathGenome::evaluate() {
 __device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome **offspring) {
     CUDAPathGenome *child = (CUDAPathGenome *) (*offspring);
     CUDAPathGenome *mate = (CUDAPathGenome *) partner;
+    // printf("\nChild:\n");
+    // // mate->print();
+    // child->print();
 
     // _Point2D *tmpPath = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
     unsigned int midPoint = 0;
@@ -94,14 +94,12 @@ __device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome **offs
                     }
                 }
                 if (insert) {
+                    printf("Inserting index %u to index %u\n", j, i);
                     child->path[i] = mate->path[j];
                     i++;
                 }
             }
         }
-        printf("\nChild:\n");
-        // mate->print();
-        child->print();
     }
     __syncthreads();
 }
