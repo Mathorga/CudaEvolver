@@ -57,13 +57,13 @@ private:
     unsigned int currentGen;
 };
 
-// Perform an avaluation on the elements of the given population.
+// Performs an avaluation on the elements of the given population.
 __global__ void evaluate(CUDAPopulation *pop);
 
 // Implements ascending odd-even transposition sort on the individuals of the population.
 __global__ void sort(CUDAPopulation *pop);
 
-// Perform an evolution step (selection, crossover, mutation, replacement) on the given population.
+// Performs an evolution step (selection, crossover, mutation, replacement) on the given population.
 __global__ void step(CUDAPopulation *pop);
 
 // Outputs the best individual of the specified population to the specified file.

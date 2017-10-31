@@ -22,6 +22,7 @@ public:
     __device__ void evaluate();
     __device__ void crossover(CUDAGenome *partner, CUDAGenome **offspring);
     __device__ void mutate();
+    __device__ CUDAGenome *clone();
     __device__ void scale(float base);
     __device__ void print();
     __device__ void output(char *string);

@@ -6,4 +6,7 @@
 *.fatbin
 *.o
 *.ppm
+*.log
+core
 bin/*
+titan/*

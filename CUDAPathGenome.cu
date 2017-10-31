@@ -17,7 +17,7 @@ __device__ void CUDAPathGenome::initialize() {
         curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &state);
 
         // Create a copy of the checks array.
-        _Point2D *checksCopy = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
+        _Point2D *checksCopy = (_Point2D *) malloc((checksNumber + 1) * sizeof(_Point2D));
         for (unsigned int i = 0; i < checksNumber; i++) {
             checksCopy[i] = checks[i];
             // printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
@@ -32,6 +32,8 @@ __device__ void CUDAPathGenome::initialize() {
                 checksCopy[j] = checksCopy[j + 1];
             }
         }
+        printf("Initialized\n");
+        // print();
         // printf("Initialized path\n");
     }
 }
@@ -97,6 +99,9 @@ __device__ void CUDAPathGenome::crossover(CUDAGenome *partner, CUDAGenome **offs
                 }
             }
         }
+        printf("\nChild:\n");
+        // mate->print();
+        child->print();
     }
     __syncthreads();
 }
@@ -105,9 +110,14 @@ __device__ void CUDAPathGenome::mutate() {
     // TODO.
 }
 
+__device__ CUDAGenome *CUDAPathGenome::clone() {
+    return new CUDAPathGenome(checks, checksNumber);
+}
+
 __device__ void CUDAPathGenome::scale(float baseScore) {
     if (threadIdx.x == 0) {
         fitness = (baseScore - score) + 1;
+        // printf("Individual %d ------- fitness:%f\n", blockIdx.x, fitness);
     }
 }
 

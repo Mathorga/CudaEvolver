@@ -6,13 +6,15 @@
 
 __global__ void evaluate(CUDAPopulation *pop) {
     pop->individuals[blockIdx.x]->evaluate();
-    pop->scale();
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        printf("Evaluated\n");
+    }
 }
 
 __global__ void sort(CUDAPopulation *pop) {
     if (blockIdx.x == 0) {
         int l;
-        CUDAGenome *tmp = (CUDAGenome *) malloc(sizeof(CUDAGenome));
+        CUDAGenome *tmp = pop->individuals[0]->clone();
 
         if (pop->getSize() % 2 == 0) {
             l = pop->getSize() / 2;
@@ -23,8 +25,9 @@ __global__ void sort(CUDAPopulation *pop) {
         for (int i = 0; i < l; i++) {
             // Even phase.
             if (!(threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
-                if (pop->individuals[threadIdx.x]->getFitness() > pop->individuals[threadIdx.x + 1]->getFitness()) {
-                    CUDAGenome *tmp = pop->individuals[threadIdx.x];
+                if (pop->individuals[threadIdx.x]->getScore() > pop->individuals[threadIdx.x + 1]->getScore()) {
+                    // Swap.
+                    tmp = pop->individuals[threadIdx.x];
                     pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
                     pop->individuals[threadIdx.x + 1] = tmp;
                 }
@@ -33,18 +36,24 @@ __global__ void sort(CUDAPopulation *pop) {
 
             // Odd phase.
             if ((threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
-                if (pop->individuals[threadIdx.x]->getFitness() > pop->individuals[threadIdx.x + 1]->getFitness()) {
-                    CUDAGenome *tmp = pop->individuals[threadIdx.x];
+                if (pop->individuals[threadIdx.x]->getScore() > pop->individuals[threadIdx.x + 1]->getScore()) {
+                    // Swap.
+                    tmp = pop->individuals[threadIdx.x];
                     pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
                     pop->individuals[threadIdx.x + 1] = tmp;
                 }
             }
             __syncthreads();
         }
+        if (threadIdx.x == 0) {
+            printf("Sorted\n");
+        }
     }
 }
 
 __global__ void step(CUDAPopulation *pop) {
+    pop->scale();
+    __syncthreads();
     pop->step();
 }
 
@@ -65,7 +74,6 @@ __global__ void outputWorst(CUDAPopulation *pop, char *string) {
 
 
 CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, Objective obj) {
-    // printf("Starting creation\n");
     genNumber = genNum;
     currentGen = 0;
     initialized = false;
@@ -75,10 +83,6 @@ CUDAPopulation::CUDAPopulation(unsigned int popSize, unsigned int genNum, Object
 }
 
 __device__ void CUDAPopulation::step() {
-    // printf("\n");
-    // for (unsigned int i = 0; i < 5; i++) {
-    //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
-    // }
 
     // Create a temporary population.
     CUDAGenome *ind = (CUDAGenome *) malloc(sizeof(CUDAGenome));
@@ -88,13 +92,6 @@ __device__ void CUDAPopulation::step() {
     // printf("Selection\n");
     CUDAGenome *partner = select();
     __syncthreads();
-
-    // if (threadIdx.x == 0) {
-    //     printf("\n");
-    //     for (unsigned int i = 0; i < 5; i++) {
-    //         printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
-    //     }
-    // }
 
     // Crossover.
     // printf("Crossover\n");
@@ -109,10 +106,6 @@ __device__ void CUDAPopulation::step() {
     // Overwrite the old individual with the new one.
     if (threadIdx.x == 0) {
         individuals[blockIdx.x] = offspring[blockIdx.x];
-
-        // for (unsigned int i = 0; i < ((CUDAPathGenome *) individuals[blockIdx.x])->getChecksNum(); i++) {
-        //     printf("x:%u\ty:%u\n", ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].x, ((CUDAPathGenome *) individuals[blockIdx.x])->path[i].y);
-        // }
     }
 
     if (blockIdx.x == 0 && threadIdx.x == 0) {

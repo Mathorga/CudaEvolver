@@ -212,6 +212,7 @@ int main(int argc, char const *argv[]) {
     printf("\nExecution:\n");
     startTime = hpc_gettime();
     for (unsigned int i = 0; i < genNumber; i++) {
+        printf("generation:%u\n", i);
         evaluate<<<d_popSize, d_checksNum>>>(d_pop);
         cudaDeviceSynchronize();
         sort<<<1, d_popSize>>>(d_pop);
