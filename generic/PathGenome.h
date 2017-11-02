@@ -6,7 +6,7 @@
 #define COORD_SIZE sizeof(unsigned int)
 #define POINT_SIZE 2 * COORD_SIZE
 
-class PathGenome : public CUDAGenome {
+class PathGenome : public Genome {
 public:
     typedef struct {
         unsigned int x = 0;
@@ -20,12 +20,12 @@ public:
 
     void initialize();
     void evaluate();
-    void crossover(CUDAGenome *partner, CUDAGenome **offspring);
-    void mutate();
-    CUDAGenome *clone();
+    void crossover(Genome *partner, Genome **offspring);
+    void mutate(float mutRate);
+    Genome *clone();
     void scale(float base);
     void print();
-    void output(char *string);
+    // void output(char *string);
 
     PathGenome(_Point2D *checks, unsigned int checksNum);
     void setCheck(unsigned int index, _Point2D check);

@@ -13,7 +13,7 @@ BIN_DIR			=./bin
 
 RM				=rm -rf
 
-all: default #deepcopy
+all: old #deepcopy
 
 default: Test
 

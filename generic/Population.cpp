@@ -1,8 +1,13 @@
 #include "Population.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <curand.h>
-#include <curand_kernel.h>
+#include <time.h>
+
+void Population::initialize() {
+    for (unsigned int i = 0; i < size; i++) {
+        individuals[i]->initialize();
+    }
+}
 
 void Population::evaluate() {
     for (unsigned int i = 0; i < size; i++) {
@@ -15,69 +20,62 @@ void Population::sort() {
 }
 
 
-__global__ void outputBest(Population *pop, char *string) {
-    if (blockIdx.x == 0) {
-        // Output the last (best) individual.
-        pop->individuals[pop->getSize() - 1]->output(string);
-    }
-}
 
-__global__ void outputWorst(Population *pop, char *string) {
-    if (blockIdx.x == 0) {
-        // Output the first (worst) individual.
-        pop->individuals[0]->output(string);
-    }
-}
-
-
-
-Population::Population(unsigned int popSize, unsigned int genNum, Objective obj) {
+Population::Population(unsigned int popSize, unsigned int genNum, float mutationRate, Genome *original) {
     genNumber = genNum;
+    mutRate = mutationRate;
     currentGen = 0;
     initialized = false;
     size = popSize;
-    individuals = (Genome **) malloc(size * sizeof(Genome *));
-    offspring = (Genome **) malloc(size * sizeof(Genome *));
+    individuals = new Genome *[size];
+    offspring = new Genome *[size];
+    for (unsigned int i = 0; i < size; i++) {
+        individuals[i] = original->clone();
+        offspring[i] = original->clone();
+    }
 }
 
 void Population::step() {
-    scale();
-    // Select.
-    // printf("Selection\n");
-    Genome *partner = select();
-    __syncthreads();
+    // Evaluate.
+    evaluate();
 
-    // Crossover.
-    // printf("Crossover\n");
-    individuals[blockIdx.x]->crossover(partner, &(offspring[blockIdx.x]));
-    __syncthreads();
+    // Sort.
+    sort();
+
+    // Scale.
+    scale();
+
+    // Select and crossover.
+    for (unsigned int i = 0; i < size; i++) {
+        Genome *parent1 = select();
+        Genome *parent2 = select();
+
+        parent1->crossover(parent2, &(offspring[i]));
+    }
 
     // Mutate.
-    // printf("Mutation\n");
-    offspring[blockIdx.x]->mutate();
-    __syncthreads();
-
-    // Overwrite the old individual with the new one.
-    if (threadIdx.x == 0) {
-        individuals[blockIdx.x] = offspring[blockIdx.x];
-        offspring[blockIdx.x] = individuals[blockIdx.x]->clone();
+    for (unsigned int i = 0; i < size; i++) {
+        offspring[i]->mutate(mutRate);
     }
 
-    if (blockIdx.x == 0 && threadIdx.x == 0) {
-        // TODO Copy the best from the old pop to the new one.
+    // Keep the best individual from the old population if better than the best of the current.
+    if (individuals[0]->getFitness() > offspring[0]->getFitness()) {
+        offspring[0] = individuals[0];
     }
-    __syncthreads();
+
+    // Overwrite the old individuals with the new ones.
+    for (unsigned int i = 0; i < size; i++) {
+        individuals[i] = offspring[i];
+        offspring[i] = individuals[i]->clone();
+    }
 }
 
 Genome *Population::select() {
     float totalFitness = 0.0;
     float previousProb = 0.0;
 
-    // Threads of the same block select the same genome by generating the same pseudo-random number.
-    curandState_t state;
-    curand_init((unsigned long) clock(), blockIdx.x, 0, &state);
-    float random = curand_uniform(&state);
-
+    // Generate a random number.
+    float random = ((float) rand()) / (RAND_MAX + 1.0);
     // Calculate the total fitness.
     for (unsigned int i = 0; i < size; i++) {
         totalFitness += individuals[i]->getFitness();
@@ -96,7 +94,9 @@ Genome *Population::select() {
 }
 
 void Population::scale() {
-    individuals[blockIdx.x]->scale(individuals[size - 1]->getScore());
+    for (unsigned int i = 0; i < size; i++) {
+        individuals[i]->scale(individuals[size - 1]->getScore());
+    }
 }
 
 void Population::quickSort(int left, int right) {
@@ -109,21 +109,21 @@ void Population::quickSort(int left, int right) {
         score = individuals[right]->getScore();
         i = left - 1;
         j = right;
-    }
-    for (;;) {
-        while (individuals[i]->getScore() < score && i <= right) {
-            i++;
-        }
-        while (individuals[i]->getScore() > score && j <= left) {
-            j--;
-        }
-        if (i >= j) {
-            break;
+        for (;;) {
+            while (individuals[++i]->getScore() < score && i <= right);
+            while (individuals[--j]->getScore() > score && j > 0);
+            if (i >= j) {
+                break;
+            }
+            g = individuals[i];
+            individuals[i] = individuals[j];
+            individuals[j] = g;
         }
         g = individuals[i];
         individuals[i] = individuals[right];
         individuals[right] = g;
         quickSort(left, i - 1);
-        quickSort(i + i, right);
+        quickSort(i + 1, right);
+        // printf("All good so far\n");
     }
 }

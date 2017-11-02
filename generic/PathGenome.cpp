@@ -1,148 +1,122 @@
 #include "PathGenome.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <curand.h>
-#include <curand_kernel.h>
-
-__global__ void createPathGenome(CUDAGenome **genome, PathGenome::_Point2D *checks, unsigned int checksNum) {
-    if (threadIdx.x == 0) {
-        *genome = new PathGenome(checks, checksNum);
-    }
-}
+#include <time.h>
+#include <math.h>
 
 void PathGenome::initialize() {
-    if (threadIdx.x == 0) {
-        // printf("Initializing\n");
-        curandState_t state;
-        curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &state);
+    // Create a copy of the checks array.
+    _Point2D *checksCopy = (_Point2D *) malloc((checksNumber + 1) * sizeof(_Point2D));
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        checksCopy[i] = checks[i];
+        // printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
+    }
+    // printf("Created a copy of checks\n");
 
-        // Create a copy of the checks array.
-        _Point2D *checksCopy = (_Point2D *) malloc((checksNumber + 1) * sizeof(_Point2D));
-        for (unsigned int i = 0; i < checksNumber; i++) {
-            checksCopy[i] = checks[i];
-            // printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
-        }
-        // printf("Created a copy of checks\n");
-
-        // Randomly initialize path;
-        for (unsigned int i = 0; i < checksNumber; i++) {
-            int index = curand(&state) % (checksNumber - i);
-            path[i] = checksCopy[index];
-            for (unsigned int j = index; j < checksNumber - i; j++) {
-                checksCopy[j] = checksCopy[j + 1];
-            }
+    // Randomly initialize path;
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        int index = rand() % (checksNumber - i);
+        path[i] = checksCopy[index];
+        for (unsigned int j = index; j < checksNumber - i; j++) {
+            checksCopy[j] = checksCopy[j + 1];
         }
     }
 }
 
 void PathGenome::evaluate() {
-    extern __shared__ float tmpDists[];
-
-    int bSize = blockDim.x / 2;
+    float *tmpDists;
+    tmpDists = (float *) malloc(checksNumber * sizeof(float));
+    score = 0;
 
     // Calculate distances between each check.
-    float dx = (float) path[(threadIdx.x + 1) % checksNumber].x - (float) path[threadIdx.x].x;
-    float dy = (float) path[(threadIdx.x + 1) % checksNumber].y - (float) path[threadIdx.x].y;
-    tmpDists[threadIdx.x] = sqrtf(powf(dx, 2) + powf(dy, 2));
-    __syncthreads();
-
-    // Perform reduction to compute the sum of the distances.
-    while (bSize > 0) {
-        if (threadIdx.x < bSize) {
-            tmpDists[threadIdx.x] += tmpDists[threadIdx.x + bSize];
-        }
-        bSize /= 2;
-        __syncthreads();
-    }
-    if (threadIdx.x == 0) {
-        score = tmpDists[0];
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        float dx = (float) path[(i + 1) % checksNumber].x - (float) path[i].x;
+        float dy = (float) path[(i + 1) % checksNumber].y - (float) path[i].y;
+        score += sqrt(pow(dx, 2) + pow(dy, 2));
     }
 }
 
-void PathGenome::crossover(CUDAGenome *partner, CUDAGenome **offspring) {
+void PathGenome::crossover(Genome *partner, Genome **offspring) {
     PathGenome *child = (PathGenome *) (*offspring);
     PathGenome *mate = (PathGenome *) partner;
-    // printf("\nChild:\n");
-    // // mate->print();
-    // child->print();
-
-    // _Point2D *tmpPath = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
     unsigned int midPoint = 0;
 
-    curandState_t state;
-    curand_init((unsigned long) clock(), 0, 0, &state);
-    midPoint = curand(&state) % (checksNumber - 1);
+    midPoint = rand() % (checksNumber - 1);
 
     // Pick from parent 1.
-    if (threadIdx.x <= midPoint) {
-        child->path[threadIdx.x] = path[threadIdx.x];
+    for (unsigned int i = 0; i <= midPoint; i++) {
+        child->path[i] = path[i];
     }
-    __syncthreads();
 
     // Pick from parent 2.
-    if (threadIdx.x == 0) {
-        for (unsigned int i = midPoint + 1; i < checksNumber; ) {
-            for (unsigned int j = 0; j < checksNumber; j++) {
-                bool insert = true;
-                for (unsigned int k = 0; k <= midPoint; k++) {
-                    if (mate->path[j].id == child->path[k].id) {
-                        insert = false;
-                        break;
-                    }
+    for (unsigned int i = midPoint + 1; i < checksNumber; ) {
+        for (unsigned int j = 0; j < checksNumber; j++) {
+            bool insert = true;
+            for (unsigned int k = 0; k <= midPoint; k++) {
+                if (mate->path[j].id == child->path[k].id) {
+                    insert = false;
+                    break;
                 }
-                if (insert) {
-                    // printf("Inserting index %u to index %u\n", j, i);
-                    child->path[i] = mate->path[j];
-                    i++;
-                }
+            }
+            if (insert) {
+                // printf("Inserting index %u to index %u\n", j, i);
+                child->path[i] = mate->path[j];
+                i++;
             }
         }
     }
-    __syncthreads();
 }
 
-void PathGenome::mutate() {
-    // TODO.
+void PathGenome::mutate(float mutRate) {
+    _Point2D *tmp = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
+
+    for (unsigned int i = 0; i < checksNumber; i++) {
+        // printf("%f out of %f\n", ((float) rand()) / (RAND_MAX + 1.0), mutRate);
+        if (((float) rand()) / (RAND_MAX + 1.0) <= mutRate) {
+            // printf("%f\n", ((float) rand()) / (RAND_MAX + 1.0));
+            int firstIndex = i;
+            int secondIndex = rand() % (checksNumber - 1);
+
+            for (unsigned int j = 0; j < checksNumber; j++) {
+                tmp[j] = path[j];
+            }
+
+            path[firstIndex] = path[secondIndex];
+            path[secondIndex] = tmp[firstIndex];
+
+        }
+    }
 }
 
-CUDAGenome *PathGenome::clone() {
+Genome *PathGenome::clone() {
     return new PathGenome(checks, checksNumber);
 }
 
 void PathGenome::scale(float baseScore) {
-    if (threadIdx.x == 0) {
-        fitness = (baseScore - score) + 1;
-        // printf("Individual %d ------- fitness:%f\n", blockIdx.x, fitness);
-    }
+    fitness = (baseScore - score) + 1;
 }
 
 void PathGenome::print() {
-    #ifdef __CUDA_ARCH__
-    if (threadIdx.x == 0) {
-        for (unsigned int i = 0; i < checksNumber; i++) {
-            printf("x:%u\ty:%u\tid:%d\n", path[i].x, path[i].y, path[i].id);
-        }
-    }
-    #else
     for (unsigned int i = 0; i < checksNumber; i++) {
         printf("x:%u\ty:%u\tid:%d\n", path[i].x, path[i].y, path[i].id);
     }
-    #endif
 };
 
-void PathGenome::output(char *string) {
-    for (int i = 0; i < COORD_SIZE; i++) {
-        memcpy(&(string[threadIdx.x * POINT_SIZE]), &(path[threadIdx.x].x), COORD_SIZE);
-        memcpy(&(string[threadIdx.x * POINT_SIZE + COORD_SIZE]), &(path[threadIdx.x].y), COORD_SIZE);
-    }
-}
+// void PathGenome::output(char *string) {
+//     for (int i = 0; i < COORD_SIZE; i++) {
+//         memcpy(&(string[threadIdx.x * POINT_SIZE]), &(path[threadIdx.x].x), COORD_SIZE);
+//         memcpy(&(string[threadIdx.x * POINT_SIZE + COORD_SIZE]), &(path[threadIdx.x].y), COORD_SIZE);
+//     }
+// }
 
 
-PathGenome::PathGenome(_Point2D *checkArray, unsigned int checksNum) : CUDAGenome(checksNum) {
+PathGenome::PathGenome(_Point2D *checkArray, unsigned int checksNum) : Genome(checksNum) {
     checksNumber = checksNum;
     checks = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     path = (_Point2D *) malloc(checksNum * sizeof(_Point2D));
     distances = (float *) malloc(checksNum * sizeof(float));
+    score = 0;
+    fitness = 0;
     for (unsigned int i = 0; i < checksNum; i++) {
         checks[i] = checkArray[i];
         _Point2D newCheck;

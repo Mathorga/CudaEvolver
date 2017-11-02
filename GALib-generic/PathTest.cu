@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <ga/ga.h>
-#include "hpc.h"
+#include "../hpc.h"
 #include "PathGenome.h"
 #include "try.h"
 

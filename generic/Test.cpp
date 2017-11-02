@@ -2,15 +2,15 @@
 #include <stdlib.h>
 #include <iostream>
 #include "../hpc.h"
-#include "CUDAPopulation.h"
+#include "Population.h"
 #include "PathGenome.h"
-#include "PathGenomeUtils.h"
 
 // Translates bidimensional indexes to a monodimensional one.
 // |i| is the column index.
 // |j| is the row index.
 // |n| is the number of columns (length of the rows).
 #define IDX(i, j, n) ((i) * (n) + (j))
+#define BUFLEN 256
 
 typedef unsigned char cell_t;
 
@@ -111,9 +111,9 @@ int main(int argc, char const *argv[]) {
     // char fileName[200];
     double startTime = 0.0;
     double endTime = 0.0;
+    char filename[BUFLEN];
     cell_t *field;
     PathGenome::_Point2D *checks;
-    PathGenome::_Point2D *d_checks;
 
     if (argc > 7) {
         printf("Usage: %s [fieldSize [checksNumber [popSize [genNumber [mutRate [crossRate]]]]]]\n", argv[0]);
@@ -141,7 +141,6 @@ int main(int argc, char const *argv[]) {
     // Create a field of checks.
     field = (cell_t *) malloc(fieldSize * fieldSize * sizeof(cell_t));
     checks = (PathGenome::_Point2D *) malloc(checksNumber * sizeof(PathGenome::_Point2D));
-    cudaMalloc(&d_checks, checksNumber * sizeof(PathGenome::_Point2D));
 
     for (unsigned int i = 0; i < fieldSize * fieldSize; i++) {
         field[i] = EMPTY;
@@ -162,37 +161,34 @@ int main(int argc, char const *argv[]) {
         printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
     }
 
-    // CUDAGenome **genome;
-    // cudaMalloc(&genome, sizeof(CUDAGenome **));
-    // cudaMalloc(&d_checks, checksNumber * sizeof(PathGenome::_Point2D));
-    // cudaMemcpy(d_checks, checks, checksNumber * sizeof(PathGenome::_Point2D), cudaMemcpyHostToDevice);
-    // createPathGenome<<<1, 1>>>(genome, d_checks, checksNumber);
-    // cudaDeviceSynchronize();
 
-    Population *population = new Population(popSize, genNumber, new PathGenome(checks, checksNumber), CUDAPopulation::MINIMIZE);
-    cudaDeviceSynchronize();
+
+
+
+    Population *population = new Population(popSize, genNumber, mutRate, new PathGenome(checks, checksNumber));
+    population->initialize();
+    population->sort();
+    dump(field, ((PathGenome *) population->best())->path, fieldSize, checksNumber, "initial.ppm");
 
     printf("\nExecution:\n");
     startTime = hpc_gettime();
     for (unsigned int i = 0; i < genNumber; i++) {
-        printf("generation:%u\n", i);
-        evaluate(d_pop);
-        sort(d_pop);
-        step(d_pop);
+        population->step();
     }
     endTime = hpc_gettime();
     printf("Execution time (s):%f\n\n", endTime - startTime);
 
-    char *string = (char *) malloc(checksNumber * POINT_SIZE);
-    population->outputBest(string);
-    outputBest<<<1, d_checksNum>>>(d_pop, d_string);
+    // char *string = (char *) malloc(checksNumber * POINT_SIZE);
+    // population->outputBest(string);
+    // outputBest<<<1, d_checksNum>>>(d_pop, d_string);
+    //
+    // for (unsigned int i = 0; i < checksNumber; i++) {
+    //     memcpy(&(checks[i].x), &(string[i * POINT_SIZE]), COORD_SIZE);
+    //     memcpy(&(checks[i].y), &(string[i * POINT_SIZE + COORD_SIZE]), COORD_SIZE);
+    //     printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
+    // }
 
-    for (unsigned int i = 0; i < checksNumber; i++) {
-        memcpy(&(checks[i].x), &(string[i * POINT_SIZE]), COORD_SIZE);
-        memcpy(&(checks[i].y), &(string[i * POINT_SIZE + COORD_SIZE]), COORD_SIZE);
-        printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
-    }
-    dump(field, checks, fieldSize, checksNumber, "final.ppm");
+    dump(field, ((PathGenome *) population->best())->path, fieldSize, checksNumber, "final.ppm");
 
 
     free(field);
