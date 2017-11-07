@@ -33,9 +33,9 @@ enum CellContent {
 };
 
 struct Point2D {
-    int x = -1;
-    int y = -1;
-    int id = -1;
+    short x = -1;
+    short y = -1;
+    // int id = -1;
 };
 
 struct Individual {
@@ -158,9 +158,9 @@ __device__ void evaluate(Individual *family, unsigned int checksNum) {
     // printf("Score of Individual %d of Family %d: %f\n", threadIdx.x, blockIdx.x, family[threadIdx.x].score);
 }
 
-__device__ int select(Individual *family, curandState_t *state) {
+__device__ void select(Individual *family, int *crossovers, curandState_t *state) {
     int random = (int) (curand_uniform(state) * blockDim.x);
-    return (family[threadIdx.x].score < family[random].score) ? threadIdx.x : random;
+    crossovers[threadIdx.x] = (family[threadIdx.x].score < family[random].score) ? threadIdx.x : random;
 }
 
 __device__ void mutate(Individual *family, curandState_t *state) {
@@ -181,7 +181,7 @@ __device__ void mutate(Individual *family, curandState_t *state) {
 __global__ void evolve(Individual *pop, unsigned int genNum, unsigned int checksNum) {
     curandState_t state;
     extern __shared__ Individual family[];
-    // Individual *tmpFamily = &family[blockDim.x];
+    int *crossovers = (int *) &family[blockDim.x];
 
     // Initialize the random number generator.
     curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &state);
@@ -195,7 +195,7 @@ __global__ void evolve(Individual *pop, unsigned int genNum, unsigned int checks
         // if (g % 10 == 0) {
         //     migrate();
         // }
-        select(family, &state);
+        select(family, crossovers, &state);
         __syncthreads();
         // crossover();
         mutate(family, &state);
@@ -263,7 +263,7 @@ int main(int argc, char const *argv[]) {
     for (unsigned int i = 0; i < CHECKS_NUM; i++) {
         checks[i].x = (rand() % fieldSize);
         checks[i].y = (rand() % fieldSize);
-        checks[i].id = i;
+        // checks[i].id = i;
         field[IDX(checks[i].x, checks[i].y, fieldSize)] = true;
     }
 
@@ -280,7 +280,14 @@ int main(int argc, char const *argv[]) {
 
     dim3 members(popSize / famNumber);
     dim3 families(famNumber);
-    size_t sharedMemSize = members.x * sizeof(Individual);
+    size_t familySize = members.x * sizeof(Individual);
+    size_t intArraySize = members.x * sizeof(int);
+    size_t floatArraySize = members.x * sizeof(float);
+    size_t sharedMemSize = familySize + intArraySize + floatArraySize;
+    printf("total shared mem / block:\t%zuB\n", sharedMemSize);
+    printf("family size:\t\t\t%zuB\n", familySize);
+    printf("int array size:\t\t\t%zuB\n", intArraySize);
+    printf("float array size:\t\t%zuB\n", floatArraySize);
 
     // Create the host population.
     population = (Individual *) malloc(size);
@@ -299,6 +306,8 @@ int main(int argc, char const *argv[]) {
 
 
 
+
+
     // ***Execution.***
     printf("Execution:\n");
     startTime = hpc_gettime();
@@ -308,6 +317,8 @@ int main(int argc, char const *argv[]) {
 
     endTime = hpc_gettime();
     printf("Execution time (s):%f\n\n", endTime - startTime);
+
+
 
 
 
