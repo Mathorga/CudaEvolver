@@ -4,14 +4,68 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-
-
-
-__global__ void evolve(CUDAPopulation *pop) {
-
+__global__ void evaluate(CUDAPopulation *pop) {
+    pop->individuals[blockIdx.x]->evaluate();
+    // if (threadIdx.x == 0 && blockIdx.x == 0) {
+    //     printf("Evaluated\n");
+    // }
 }
 
+__global__ void sort(CUDAPopulation *pop) {
+    if (blockIdx.x == 0) {
+        int l;
 
+        if (pop->getSize() % 2 == 0) {
+            l = pop->getSize() / 2;
+        } else {
+            l = (pop->getSize() / 2) + 1;
+        }
+
+        for (int i = 0; i < l; i++) {
+            // Even phase.
+            if (!(threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
+                if (pop->individuals[threadIdx.x]->getScore() > pop->individuals[threadIdx.x + 1]->getScore()) {
+                    // Swap.
+                    pop->tmp = pop->individuals[threadIdx.x];
+                    pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
+                    pop->individuals[threadIdx.x + 1] = pop->tmp;
+                }
+            }
+            __syncthreads();
+
+            // Odd phase.
+            if ((threadIdx.x & 1) && (threadIdx.x < (pop->getSize() - 1))) {
+                if (pop->individuals[threadIdx.x]->getScore() > pop->individuals[threadIdx.x + 1]->getScore()) {
+                    // Swap.
+                    pop->tmp = pop->individuals[threadIdx.x];
+                    pop->individuals[threadIdx.x] = pop->individuals[threadIdx.x + 1];
+                    pop->individuals[threadIdx.x + 1] = pop->tmp;
+                }
+            }
+            __syncthreads();
+        }
+    }
+}
+
+__global__ void step(CUDAPopulation *pop) {
+    pop->scale();
+    __syncthreads();
+    pop->step();
+}
+
+__global__ void outputBest(CUDAPopulation *pop, char *string) {
+    if (blockIdx.x == 0) {
+        // Output the last (best) individual.
+        pop->individuals[pop->getSize() - 1]->output(string);
+    }
+}
+
+__global__ void outputWorst(CUDAPopulation *pop, char *string) {
+    if (blockIdx.x == 0) {
+        // Output the first (worst) individual.
+        pop->individuals[0]->output(string);
+    }
+}
 
 
 

@@ -103,7 +103,7 @@ int main(int argc, char const *argv[]) {
 
     unsigned int fieldSize = 500;
     unsigned int checksNumber = 15;
-    unsigned int popSize = 50;
+    unsigned int popSize = 1024;
     unsigned int genNumber = 1000;
     float mutRate = 0.1;
     float crossRate = 1;
@@ -173,6 +173,7 @@ int main(int argc, char const *argv[]) {
     printf("\nExecution:\n");
     startTime = hpc_gettime();
     for (unsigned int i = 0; i < genNumber; i++) {
+        // printf("Generation %u\n", i);
         population->step();
     }
     endTime = hpc_gettime();

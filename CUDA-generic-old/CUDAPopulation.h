@@ -2,6 +2,7 @@
 #define __CUDA_POPULATION__
 
 #include "CUDAGenome.h"
+#include "CUDAPathGenome.h"
 
 class CUDAPopulation {
 public:
@@ -46,6 +47,19 @@ private:
     unsigned int currentGen;
 };
 
-__global__ void evolve();
+// Performs an avaluation on the elements of the given population.
+__global__ void evaluate(CUDAPopulation *pop);
+
+// Implements ascending odd-even transposition sort on the individuals of the population.
+__global__ void sort(CUDAPopulation *pop);
+
+// Performs an evolution step (selection, crossover, mutation, replacement) on the given population.
+__global__ void step(CUDAPopulation *pop);
+
+// Outputs the best individual of the specified population to the specified file.
+__global__ void outputBest(CUDAPopulation *pop, char *string);
+
+// Outputs the worst individual of the specified population to the specified file.
+__global__ void outputWorst(CUDAPopulation *pop, char *string);
 
 #endif

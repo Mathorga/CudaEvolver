@@ -1,6 +1,6 @@
 NVCOMP			=nvcc
-NVCOMP_FLAGS	=-std=c++11 -arch=sm_35 -dc -g -G
-NVLINK_FLAGS	=-arch=sm_35 -rdc=true
+NVCOMP_FLAGS	=-std=c++11 -arch=sm_35 -g -G -use_fast_math
+NVLINK_FLAGS	=-arch=sm_35
 NVCOMP_LIBS		=-lstdc++
 
 BIN_DIR			=./bin

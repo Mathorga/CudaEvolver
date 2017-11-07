@@ -1,7 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include <curand.h>
+#include <curand_kernel.h>
 #include "../hpc.h"
+
+#define BLOCK_SIZE 32
+#define CHECKS_NUM 15
+#define MUTATION_RATE 0.1
+#define CROSS_RATE 1
 
 #define cudaCheckError() {                                                                                  \
             cudaError_t e = cudaGetLastError();                                                             \
@@ -29,6 +36,11 @@ struct Point2D {
     int x = -1;
     int y = -1;
     int id = -1;
+};
+
+struct Individual {
+    Point2D path[CHECKS_NUM];
+    float score = 0.0;
 };
 
 // Code taken from Rosettacode:
@@ -109,7 +121,18 @@ void dump(const cell_t *field, const Point2D *path, unsigned int n, unsigned int
     fclose(out);
 }
 
-void initialize(Point2D *pop, unsigned int popSize, Point2D *checks, unsigned int checksNum) {
+
+
+
+
+
+
+
+
+
+
+
+void initialize(Individual *pop, unsigned int popSize, Point2D *checks, unsigned int checksNum) {
     Point2D *checksCopy = (Point2D *) malloc(checksNum * sizeof(Point2D));
     for (unsigned int i = 0; i < popSize; i++) {
         for (unsigned int j = 0; j < checksNum; j++) {
@@ -117,7 +140,7 @@ void initialize(Point2D *pop, unsigned int popSize, Point2D *checks, unsigned in
         }
         for (unsigned int j = 0; j < checksNum; j++) {
             int index = rand() % (checksNum - j);
-            pop[IDX(i, j, checksNum)] = checksCopy[index];
+            pop[i].path[j] = checksCopy[index];
             for (unsigned int k = index; k < checksNum - 1; k++) {
                 checksCopy[k] = checksCopy[k + 1];
             }
@@ -125,50 +148,88 @@ void initialize(Point2D *pop, unsigned int popSize, Point2D *checks, unsigned in
     }
 }
 
+__device__ void evaluate(Individual *family, unsigned int checksNum) {
+    family[threadIdx.x].score = 0;
+    for (unsigned int i = 0; i < checksNum; i++) {
+        family[threadIdx.x].score +=
+        sqrtf(powf(fabsf(family[threadIdx.x].path[(i + 1) % checksNum].x - family[threadIdx.x].path[i].x), 2) +
+              powf(fabsf(family[threadIdx.x].path[(i + 1) % checksNum].y - family[threadIdx.x].path[i].y), 2));
+    }
+    // printf("Score of Individual %d of Family %d: %f\n", threadIdx.x, blockIdx.x, family[threadIdx.x].score);
+}
 
+__device__ int select(Individual *family, curandState_t *state) {
+    int random = (int) (curand_uniform(state) * blockDim.x);
+    return (family[threadIdx.x].score < family[random].score) ? threadIdx.x : random;
+}
 
-__global__ void evaluate(Point2D *pop, float *scores) {
-    extern __shared__ float tmpDists[];
-
-    int bSize = blockDim.x / 2;
-
-    // Calculate distances between each check.
-    float dx = (float) pop[IDX(blockIdx.x, (threadIdx.x + 1) % blockDim.x, blockDim.x)].x -
-               (float) pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)].x;
-    float dy = (float) pop[IDX(blockIdx.x, (threadIdx.x + 1) % blockDim.x, blockDim.x)].y -
-               (float) pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)].y;
-    tmpDists[threadIdx.x] = sqrtf(powf(dx, 2) + powf(dy, 2));
-    __syncthreads();
-
-    // Perform reduction to compute the sum of the distances.
-    while (bSize > 0) {
-        if (threadIdx.x < bSize) {
-            tmpDists[threadIdx.x] += tmpDists[threadIdx.x + bSize];
+__device__ void mutate(Individual *family, curandState_t *state) {
+    Point2D tmp[CHECKS_NUM];
+    for (int i = 0; i < CHECKS_NUM; i++) {
+        if (curand_uniform(state) <= MUTATION_RATE) {
+            int firstIndex = i;
+            int secondIndex = curand_uniform(state) * (CHECKS_NUM - 1);
+            for (int j = 0; j < CHECKS_NUM; j++) {
+                tmp[j] = family[threadIdx.x].path[j];
+            }
+            family[threadIdx.x].path[firstIndex] = family[threadIdx.x].path[secondIndex];
+            family[threadIdx.x].path[secondIndex] = tmp[firstIndex];
         }
-        bSize /= 2;
+    }
+}
+
+__global__ void evolve(Individual *pop, unsigned int genNum, unsigned int checksNum) {
+    curandState_t state;
+    extern __shared__ Individual family[];
+    // Individual *tmpFamily = &family[blockDim.x];
+
+    // Initialize the random number generator.
+    curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &state);
+
+    // Copy the family to shared memory.
+    family[threadIdx.x] = pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)];
+
+    for (unsigned int g = 0; g < genNum; g++) {
+        evaluate(family, checksNum);
+        __syncthreads();
+        // if (g % 10 == 0) {
+        //     migrate();
+        // }
+        select(family, &state);
+        __syncthreads();
+        // crossover();
+        mutate(family, &state);
         __syncthreads();
     }
-    if (threadIdx.x == 0) {
-        scores[blockIdx.x] = tmpDists[0];
-    }
+    pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)] = family[threadIdx.x];
 }
 
 
 
-int main(int argc, char const *argv[]) {
-    Point2D *population;
-    float *scores;
 
-    Point2D *d_population;
-    Point2D *d_offspring;
-    float *d_scores;
+
+
+
+
+
+
+
+
+
+
+
+int main(int argc, char const *argv[]) {
+    Individual *population;
+    // float *scores;
+
+    Individual *d_population;
+    Individual *d_tmpPop;
+    // float *d_scores;
 
     unsigned int fieldSize = 500;
-    unsigned int checksNumber = 15;
-    unsigned int popSize = 50;
+    unsigned int popSize = 1024;
+    unsigned int famNumber = 32;
     unsigned int genNumber = 1000;
-    float mutRate = 0.1;
-    float crossRate = 1;
 
     // char fileName[200];
     double startTime = 0.0;
@@ -176,85 +237,90 @@ int main(int argc, char const *argv[]) {
     cell_t *field;
     Point2D *checks;
 
-    if (argc > 7) {
-        printf("Usage: %s [fieldSize [checksNumber [popSize [genNumber [mutRate [crossRate]]]]]]\n", argv[0]);
+    if (argc > 4) {
+        printf("Usage: %s [fieldSize [popSize [genNumber]]\n", argv[0]);
         return -1;
     }
     if (argc > 1) {
         fieldSize = atoi(argv[1]);
     }
     if (argc > 2) {
-        checksNumber = atoi(argv[2]);
-    }
-    if (argc > 3) {
         popSize = atoi(argv[3]);
     }
-    if (argc > 4) {
+    if (argc > 3) {
         genNumber = atoi(argv[4]);
-    }
-    if (argc > 5) {
-        mutRate = atof(argv[5]);
-    }
-    if (argc > 6) {
-        crossRate = atof(argv[6]);
     }
 
     // Create a field of checks.
     field = (cell_t *) malloc(fieldSize * fieldSize * sizeof(cell_t));
-    checks = (Point2D *) malloc(checksNumber * sizeof(Point2D));
+    checks = (Point2D *) malloc(CHECKS_NUM * sizeof(Point2D));
 
     for (unsigned int i = 0; i < fieldSize * fieldSize; i++) {
         field[i] = EMPTY;
     }
 
     srand(time(NULL));
-    for (unsigned int i = 0; i < checksNumber; i++) {
+    for (unsigned int i = 0; i < CHECKS_NUM; i++) {
         checks[i].x = (rand() % fieldSize);
         checks[i].y = (rand() % fieldSize);
         checks[i].id = i;
         field[IDX(checks[i].x, checks[i].y, fieldSize)] = true;
     }
 
-    dump(field, NULL, fieldSize, checksNumber, "field.ppm");
+    dump(field, NULL, fieldSize, CHECKS_NUM, "field.ppm");
 
     printf("Field:\n");
-    for (unsigned int i = 0; i < checksNumber; i++) {
+    for (unsigned int i = 0; i < CHECKS_NUM; i++) {
         printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
     }
 
 
 
-    const size_t size = popSize * checksNumber * sizeof(Point2D);
+    const size_t size = popSize * sizeof(Individual);
 
-    dim3 block(checksNumber);
-    dim3 grid(popSize);
+    dim3 members(popSize / famNumber);
+    dim3 families(famNumber);
+    size_t sharedMemSize = members.x * sizeof(Individual);
 
     // Create the host population.
-    population = (Point2D *) malloc(size);
-    scores = (float *) malloc(popSize);
+    population = (Individual *) malloc(size);
+    // scores = (float *) malloc(popSize);
 
     // Create the device populations.
     cudaMalloc(&d_population, size);
-    cudaMalloc(&d_offspring, size);
-    cudaMalloc(&d_scores, popSize * sizeof(float));
+    cudaMalloc(&d_tmpPop, size);
+    // cudaMalloc(&d_scores, popSize * sizeof(float));
 
     // Initialize the population.
-    initialize(population, popSize, checks, checksNumber);
+    initialize(population, popSize, checks, CHECKS_NUM);
 
     // Copy the host population to the device.
     cudaMemcpy(d_population, population, size, cudaMemcpyHostToDevice);
 
+
+
+    // ***Execution.***
+    printf("Execution:\n");
     startTime = hpc_gettime();
-    for (unsigned int i = 0; i < genNumber; i++) {
-        // Evaluate.
-        evaluate<<<grid, block, checksNumber * sizeof(Point2D)>>>(d_population, d_scores);
-        // cudaMemcpy(scores, d_scores, popSize * sizeof(float), cudaMemcpyDeviceToHost);
-        // for (unsigned int j = 0; j < popSize; j++) {
-        //     printf("Score of individual %u: %f\n", j, scores[j]);
-        // }
-        // Sort.
-    }
+
+    evolve<<<families, members, sharedMemSize>>>(d_population, genNumber, CHECKS_NUM);
+    cudaDeviceSynchronize();
+
     endTime = hpc_gettime();
+    printf("Execution time (s):%f\n\n", endTime - startTime);
+
+
+
+
+    // Copy the device population back to the host.
+    cudaMemcpy(population, d_population, size, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < popSize; i++) {
+        char fileName[255];
+        sprintf(fileName, "Individual%d.ppm", i);
+        // dump(field, population[0].path, fieldSize, CHECKS_NUM, fileName);
+    }
+
+
 
 
 

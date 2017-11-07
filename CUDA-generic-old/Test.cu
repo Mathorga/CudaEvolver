@@ -108,7 +108,6 @@ void dump(const cell_t *field, const CUDAPathGenome::_Point2D *path, unsigned in
 }
 
 
-
 int main(int argc, char const *argv[]) {
     // hi<<<2, 10>>>();
     // cudaDeviceSynchronize();
