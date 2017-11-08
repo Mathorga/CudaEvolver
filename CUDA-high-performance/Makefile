@@ -23,3 +23,4 @@ clean:
 	$(RM) *.ppm
 	$(RM) *.dat
 	$(RM) *.log
+	$(RM) *.out

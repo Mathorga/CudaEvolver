@@ -7,8 +7,9 @@
 
 #define BLOCK_SIZE 32
 #define CHECKS_NUM 15
-#define MUTATION_RATE 0.1
-#define CROSS_RATE 1
+#define MUTATION_PROB 0.001
+#define CROSS_PROB 1
+#define MIGRATORS_NUM 2
 
 #define cudaCheckError() {                                                                                  \
             cudaError_t e = cudaGetLastError();                                                             \
@@ -148,60 +149,130 @@ void initialize(Individual *pop, unsigned int popSize, Point2D *checks, unsigned
     }
 }
 
-__device__ void evaluate(Individual *family, unsigned int checksNum) {
-    family[threadIdx.x].score = 0;
-    for (unsigned int i = 0; i < checksNum; i++) {
-        family[threadIdx.x].score +=
-        sqrtf(powf(fabsf(family[threadIdx.x].path[(i + 1) % checksNum].x - family[threadIdx.x].path[i].x), 2) +
-              powf(fabsf(family[threadIdx.x].path[(i + 1) % checksNum].y - family[threadIdx.x].path[i].y), 2));
+__device__ void migrate(Individual *family, Individual *pop) {
+    for (int i = 0; i < MIGRATORS_NUM; i++) {
+        family[threadIdx.x] = pop[IDX((blockIdx.x + 1) % gridDim.x, threadIdx.x, blockDim.x)];
     }
-    // printf("Score of Individual %d of Family %d: %f\n", threadIdx.x, blockIdx.x, family[threadIdx.x].score);
 }
 
-__device__ void select(Individual *family, int *crossovers, curandState_t *state) {
+// Evaluates an element by summing the distances between each check in its path.
+__device__ void evaluate(Individual *family) {
+    family[threadIdx.x].score = 0;
+    for (unsigned int i = 0; i < CHECKS_NUM; i++) {
+        family[threadIdx.x].score +=
+        sqrtf(powf(fabsf(family[threadIdx.x].path[(i + 1) % CHECKS_NUM].x - family[threadIdx.x].path[i].x), 2) +
+              powf(fabsf(family[threadIdx.x].path[(i + 1) % CHECKS_NUM].y - family[threadIdx.x].path[i].y), 2));
+    }
+}
+
+__device__ void select(Individual *family, Individual *tmpFamily, int *fitters, curandState_t *state) {
     int random = (int) (curand_uniform(state) * blockDim.x);
-    crossovers[threadIdx.x] = (family[threadIdx.x].score < family[random].score) ? threadIdx.x : random;
+    fitters[threadIdx.x] = (family[threadIdx.x].score < family[random].score) ? threadIdx.x : random;
+    tmpFamily[threadIdx.x] = family[threadIdx.x];
 }
 
-__device__ void mutate(Individual *family, curandState_t *state) {
-    Point2D tmp[CHECKS_NUM];
+__device__ void crossover(Individual *family, Individual *tmpFamily, int *fitters) {
+    // curand_uniform();
+    family[threadIdx.x] = tmpFamily[fitters[threadIdx.x]];
+}
+
+// Implements mutiation by swaps of pairs of checks.
+__device__ void mutate(Individual *family, Individual *tmpFamily, curandState_t *state) {
     for (int i = 0; i < CHECKS_NUM; i++) {
-        if (curand_uniform(state) <= MUTATION_RATE) {
+        if (curand_uniform(state) <= MUTATION_PROB) {
             int firstIndex = i;
             int secondIndex = curand_uniform(state) * (CHECKS_NUM - 1);
             for (int j = 0; j < CHECKS_NUM; j++) {
-                tmp[j] = family[threadIdx.x].path[j];
+                tmpFamily[threadIdx.x].path[j] = family[threadIdx.x].path[j];
             }
             family[threadIdx.x].path[firstIndex] = family[threadIdx.x].path[secondIndex];
-            family[threadIdx.x].path[secondIndex] = tmp[firstIndex];
+            family[threadIdx.x].path[secondIndex] = tmpFamily[threadIdx.x].path[firstIndex];
         }
     }
 }
 
-__global__ void evolve(Individual *pop, unsigned int genNum, unsigned int checksNum) {
-    curandState_t state;
-    extern __shared__ Individual family[];
-    int *crossovers = (int *) &family[blockDim.x];
+// Implements odd-even transposition sort on the elements of a family.
+__device__ void sort(Individual *family, Individual *tmpFamily) {
+    for (int i = 0; i < blockDim.x / 2; i++) {
+        // Even phase.
+        if (!(threadIdx.x & 1) && threadIdx.x < gridDim.x - 1) {
+            if (family[threadIdx.x].score > family[threadIdx.x + 1].score) {
+                // Swap.
+                tmpFamily[threadIdx.x] = family[threadIdx.x];
+                family[threadIdx.x] = family[threadIdx.x + 1];
+                family[threadIdx.x + 1] = tmpFamily[threadIdx.x];
+            }
+        }
+        __syncthreads();
 
-    // Initialize the random number generator.
-    curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &state);
+        // Odd phase.
+        if ((threadIdx.x & 1) && threadIdx.x < gridDim.x * blockDim.x - 1) {
+            if (family[threadIdx.x].score > family[threadIdx.x + 1].score) {
+                // Swap.
+                tmpFamily[threadIdx.x] = family[threadIdx.x];
+                family[threadIdx.x] = family[threadIdx.x + 1];
+                family[threadIdx.x + 1] = tmpFamily[threadIdx.x];
+            }
+        }
+        __syncthreads();
+    }
+}
+
+__global__ void evolve(Individual *pop, unsigned int genNum) {
+    curandState_t singleState;
+    curandState_t coupleState;
+    extern __shared__ Individual family[];
+    Individual *tmpFamily = &family[blockDim.x];
+    int *fitters = (int *) &tmpFamily[blockDim.x];
+
+    // Initialize the inter-block random number generator.
+    // Different threads get different randoms.
+    curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x, &singleState);
+
+    // Initialize the intra-block random number generator.
+    // Pairs of threads get the same randoms.
+    curand_init((unsigned long) clock(), blockIdx.x, threadIdx.x % (blockDim.x / 2), &coupleState);
 
     // Copy the family to shared memory.
     family[threadIdx.x] = pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)];
 
     for (unsigned int g = 0; g < genNum; g++) {
-        evaluate(family, checksNum);
-        __syncthreads();
-        // if (g % 10 == 0) {
-        //     migrate();
+        // Migration.
+        // if (g % 10 == 0 && threadIdx.x >= blockDim.x - MIGRATORS_NUM) {
+        //     migrate(family, pop);
         // }
-        select(family, crossovers, &state);
+        // __syncthreads();
+
+        // Evaluation.
+        evaluate(family);
         __syncthreads();
-        // crossover();
-        mutate(family, &state);
+
+        // Selection.
+        select(family, tmpFamily, fitters, &singleState);
+        __syncthreads();
+
+        // Crossover.
+        if (curand_uniform(&coupleState) < CROSS_PROB) {
+            crossover(family, tmpFamily, fitters);
+        }
+        __syncthreads();
+
+        // Mutation.
+        mutate(family, tmpFamily, &singleState);
+        __syncthreads();
+
+        // Copy the family back to global memory.
+        pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)] = family[threadIdx.x];
         __syncthreads();
     }
+
+    // Sort the family.
+    sort(family, tmpFamily);
+    __syncthreads();
+
+    // Copy the family back to global memory.
     pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)] = family[threadIdx.x];
+    __syncthreads();
 }
 
 
@@ -220,18 +291,12 @@ __global__ void evolve(Individual *pop, unsigned int genNum, unsigned int checks
 
 int main(int argc, char const *argv[]) {
     Individual *population;
-    // float *scores;
-
     Individual *d_population;
-    Individual *d_tmpPop;
-    // float *d_scores;
 
     unsigned int fieldSize = 500;
     unsigned int popSize = 1024;
     unsigned int famNumber = 32;
     unsigned int genNumber = 1000;
-
-    // char fileName[200];
     double startTime = 0.0;
     double endTime = 0.0;
     cell_t *field;
@@ -282,21 +347,16 @@ int main(int argc, char const *argv[]) {
     dim3 families(famNumber);
     size_t familySize = members.x * sizeof(Individual);
     size_t intArraySize = members.x * sizeof(int);
-    size_t floatArraySize = members.x * sizeof(float);
-    size_t sharedMemSize = familySize + intArraySize + floatArraySize;
+    size_t sharedMemSize = 2 * familySize + intArraySize;
     printf("total shared mem / block:\t%zuB\n", sharedMemSize);
     printf("family size:\t\t\t%zuB\n", familySize);
     printf("int array size:\t\t\t%zuB\n", intArraySize);
-    printf("float array size:\t\t%zuB\n", floatArraySize);
 
     // Create the host population.
     population = (Individual *) malloc(size);
-    // scores = (float *) malloc(popSize);
 
     // Create the device populations.
     cudaMalloc(&d_population, size);
-    cudaMalloc(&d_tmpPop, size);
-    // cudaMalloc(&d_scores, popSize * sizeof(float));
 
     // Initialize the population.
     initialize(population, popSize, checks, CHECKS_NUM);
@@ -308,16 +368,16 @@ int main(int argc, char const *argv[]) {
 
 
 
+
     // ***Execution.***
     printf("Execution:\n");
     startTime = hpc_gettime();
 
-    evolve<<<families, members, sharedMemSize>>>(d_population, genNumber, CHECKS_NUM);
+    evolve<<<families, members, sharedMemSize>>>(d_population, genNumber);
     cudaDeviceSynchronize();
 
     endTime = hpc_gettime();
-    printf("Execution time (s):%f\n\n", endTime - startTime);
-
+    printf("Execution time: %fs\n\n", endTime - startTime);
 
 
 
@@ -325,10 +385,12 @@ int main(int argc, char const *argv[]) {
 
     // Copy the device population back to the host.
     cudaMemcpy(population, d_population, size, cudaMemcpyDeviceToHost);
-    for (int i = 0; i < popSize; i++) {
+
+    for (int i = 0; i < famNumber; i++) {
         char fileName[255];
-        sprintf(fileName, "Individual%d.ppm", i);
-        // dump(field, population[0].path, fieldSize, CHECKS_NUM, fileName);
+        sprintf(fileName, "BestOfFam%d.ppm", i);
+        dump(field, population[i * 32].path, fieldSize, CHECKS_NUM, fileName);
+        printf("Best of Family %d score %f\n", i, population[i * 32].score);
     }
 
 
