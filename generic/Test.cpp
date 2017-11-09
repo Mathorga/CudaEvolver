@@ -103,7 +103,7 @@ int main(int argc, char const *argv[]) {
 
     unsigned int fieldSize = 500;
     unsigned int checksNumber = 15;
-    unsigned int popSize = 1024;
+    unsigned int popSize = 2048;
     unsigned int genNumber = 1000;
     float mutRate = 0.1;
     float crossRate = 1;
