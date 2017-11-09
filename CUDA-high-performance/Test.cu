@@ -6,9 +6,9 @@
 #include "../hpc.h"
 
 #define BLOCK_SIZE 32
-#define CHECKS_NUM 15
+#define CHECKS_NUM 30
 #define MUTATION_PROB 0.001
-#define CROSS_PROB 1
+#define CROSS_PROB 0.5
 #define MIGRATORS_NUM 2
 
 #define cudaCheckError() {                                                                                  \
@@ -38,6 +38,10 @@ struct Point2D {
     short y = -1;
     // int id = -1;
 };
+
+__host__ __device__ bool operator == (const Point2D point1, const Point2D point2) {
+    return (point1.x == point2.x && point1.y == point2.y);
+}
 
 struct Individual {
     Point2D path[CHECKS_NUM];
@@ -149,12 +153,6 @@ void initialize(Individual *pop, unsigned int popSize, Point2D *checks, unsigned
     }
 }
 
-__device__ void migrate(Individual *family, Individual *pop) {
-    for (int i = 0; i < MIGRATORS_NUM; i++) {
-        family[threadIdx.x] = pop[IDX((blockIdx.x + 1) % gridDim.x, threadIdx.x, blockDim.x)];
-    }
-}
-
 // Evaluates an element by summing the distances between each check in its path.
 __device__ void evaluate(Individual *family) {
     family[threadIdx.x].score = 0;
@@ -171,8 +169,38 @@ __device__ void select(Individual *family, Individual *tmpFamily, int *fitters, 
     tmpFamily[threadIdx.x] = family[threadIdx.x];
 }
 
-__device__ void crossover(Individual *family, Individual *tmpFamily, int *fitters) {
-    // curand_uniform();
+__device__ void crossover(Individual *family, Individual *tmpFamily, int *fitters, curandState_t *state) {
+    // Pick two of the fitters and do crossover on them.
+    Individual parent1 = family[fitters[threadIdx.x]];
+    Individual parent2 = family[fitters[(threadIdx.x + 1) % blockDim.x]];
+    int midPoint = curand_uniform(state) * CHECKS_NUM;
+    bool insert = true;
+
+    // Pick from parent 1.
+    for (int i = 0; i <= midPoint; i++) {
+        tmpFamily[threadIdx.x].path[i] = parent1.path[i];
+    }
+
+    // Pick from parent 2.
+    for (int i = midPoint + 1; i < CHECKS_NUM;) {
+        for (int j = 0; j < CHECKS_NUM; j++) {
+            insert = true;
+            for (int k = 0; k <= midPoint; k++) {
+                if (parent2.path[j] == tmpFamily[threadIdx.x].path[k]) {
+                    insert = false;
+                    break;
+                }
+            }
+            if (insert) {
+                tmpFamily[threadIdx.x].path[i] = parent2.path[j];
+                i++;
+            }
+        }
+    }
+    family[threadIdx.x] = tmpFamily[threadIdx.x];
+}
+
+__device__ void lazyCrossover(Individual *family, Individual *tmpFamily, int *fitters) {
     family[threadIdx.x] = tmpFamily[fitters[threadIdx.x]];
 }
 
@@ -237,12 +265,6 @@ __global__ void evolve(Individual *pop, unsigned int genNum) {
     family[threadIdx.x] = pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)];
 
     for (unsigned int g = 0; g < genNum; g++) {
-        // Migration.
-        // if (g % 10 == 0 && threadIdx.x >= blockDim.x - MIGRATORS_NUM) {
-        //     migrate(family, pop);
-        // }
-        // __syncthreads();
-
         // Evaluation.
         evaluate(family);
         __syncthreads();
@@ -253,16 +275,12 @@ __global__ void evolve(Individual *pop, unsigned int genNum) {
 
         // Crossover.
         if (curand_uniform(&coupleState) < CROSS_PROB) {
-            crossover(family, tmpFamily, fitters);
+            crossover(family, tmpFamily, fitters, &singleState);
         }
         __syncthreads();
 
         // Mutation.
         mutate(family, tmpFamily, &singleState);
-        __syncthreads();
-
-        // Copy the family back to global memory.
-        pop[IDX(blockIdx.x, threadIdx.x, blockDim.x)] = family[threadIdx.x];
         __syncthreads();
     }
 
@@ -294,7 +312,7 @@ int main(int argc, char const *argv[]) {
     Individual *d_population;
 
     unsigned int fieldSize = 500;
-    unsigned int popSize = 1024;
+    unsigned int popSize = 4096;
     unsigned int famNumber = 32;
     unsigned int genNumber = 1000;
     double startTime = 0.0;
@@ -389,13 +407,14 @@ int main(int argc, char const *argv[]) {
     for (int i = 0; i < famNumber; i++) {
         char fileName[255];
         sprintf(fileName, "BestOfFam%d.ppm", i);
-        dump(field, population[i * 32].path, fieldSize, CHECKS_NUM, fileName);
-        printf("Best of Family %d score %f\n", i, population[i * 32].score);
+        dump(field, population[i * members.x].path, fieldSize, CHECKS_NUM, fileName);
+        printf("Family %d best score %f\n", i, population[i * members.x].score);
     }
 
 
 
 
-
+    free(population);
+    cudaFree(d_population);
     return 0;
 }
