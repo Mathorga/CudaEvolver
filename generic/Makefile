@@ -1,7 +1,7 @@
 CCOMP			=gcc
-CCOMP_FLAGS		=-std=c++11 -g
+CCOMP_FLAGS		=-std=c++11 -g -fopenmp
 CLINK_FLAGS		=
-CCOMP_LIBS		=-lstdc++
+CCOMP_LIBS		=-lstdc++ -lrt -lgomp
 
 BIN_DIR			=./bin
 

@@ -6,7 +6,7 @@
 #include "../hpc.h"
 
 #define BLOCK_SIZE 32
-#define CHECKS_NUM 30
+#define CHECKS_NUM 15
 #define MUTATION_PROB 0.001
 #define CROSS_PROB 0.5
 #define MIGRATORS_NUM 2
@@ -312,7 +312,7 @@ int main(int argc, char const *argv[]) {
     Individual *d_population;
 
     unsigned int fieldSize = 500;
-    unsigned int popSize = 4096;
+    unsigned int popSize = 2048;
     unsigned int famNumber = 32;
     unsigned int genNumber = 1000;
     double startTime = 0.0;

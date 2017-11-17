@@ -4,12 +4,14 @@
 #include <time.h>
 
 void Population::initialize() {
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         individuals[i]->initialize();
     }
 }
 
 void Population::evaluate() {
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         individuals[i]->evaluate();
     }
@@ -46,6 +48,7 @@ void Population::step() {
     scale();
 
     // Select and crossover.
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         Genome *parent1 = select();
         Genome *parent2 = select();
@@ -54,6 +57,7 @@ void Population::step() {
     }
 
     // Mutate.
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         offspring[i]->mutate(mutRate);
     }
@@ -64,6 +68,7 @@ void Population::step() {
     }
 
     // Overwrite the old individuals with the new ones.
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         individuals[i] = offspring[i];
         offspring[i] = individuals[i]->clone();
@@ -94,6 +99,7 @@ Genome *Population::select() {
 }
 
 void Population::scale() {
+    #pragma omp parallel for
     for (unsigned int i = 0; i < size; i++) {
         individuals[i]->scale(individuals[size - 1]->getScore());
     }
