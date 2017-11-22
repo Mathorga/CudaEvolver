@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include "../hpc.h"
-#include "CUDAPopulation.h"
-#include "CUDAPathGenome.h"
-#include "CUDAPathGenomeUtils.h"
-#include "try.h"
+#include "../../hpc.h"
+#include "Individual.h"
+
+#define BLOCK_SIZE 32
 
 #define cudaCheckError() {                                                                                  \
             cudaError_t e = cudaGetLastError();                                                             \
@@ -60,7 +59,7 @@ void drawLine(cell_t *field, int n, int x0, int y0, int x1, int y1) {
     }
 }
 
-void dump(const cell_t *field, const CUDAPathGenome::_Point2D *path, unsigned int n, unsigned int checksNum, const char *filename) {
+void dump(const cell_t *field, const Point2D *path, unsigned int n, unsigned int checksNum, const char *filename) {
     cell_t *fieldCopy = (cell_t *) malloc(n * n * sizeof(cell_t));
     for (unsigned int x = 0; x < n; x++) {
         for (unsigned int y = 0; y < n; y++) {
@@ -110,137 +109,121 @@ void dump(const cell_t *field, const CUDAPathGenome::_Point2D *path, unsigned in
 
 
 int main(int argc, char const *argv[]) {
-    // hi<<<2, 10>>>();
-    // cudaDeviceSynchronize();
+    Individual *population;
+    Individual *d_population;
 
     unsigned int fieldSize = 500;
-    unsigned int checksNumber = 15;
-    unsigned int popSize = 50;
+    unsigned int popSize = 2048;
+    unsigned int famNumber = 32;
     unsigned int genNumber = 1000;
-    float mutRate = 0.1;
-    float crossRate = 1;
-
-    // char fileName[200];
+    float crossProb = 0.5;
+    float mutProb = 0.001;
     double startTime = 0.0;
     double endTime = 0.0;
     cell_t *field;
-    CUDAPathGenome::_Point2D *checks;
-    CUDAPathGenome::_Point2D *d_checks;
+    Point2D *checks;
 
-    if (argc > 7) {
-        printf("Usage: %s [fieldSize [checksNumber [popSize [genNumber [mutRate [crossRate]]]]]]\n", argv[0]);
+    if (argc > 6) {
+        printf("Usage: %s [fieldSize [popSize [genNumber [crossProb [mutProb]]]]\n", argv[0]);
         return -1;
     }
     if (argc > 1) {
         fieldSize = atoi(argv[1]);
     }
     if (argc > 2) {
-        checksNumber = atoi(argv[2]);
-    }
-    if (argc > 3) {
         popSize = atoi(argv[3]);
     }
-    if (argc > 4) {
+    if (argc > 3) {
         genNumber = atoi(argv[4]);
     }
-    if (argc > 5) {
-        mutRate = atof(argv[5]);
+    if (argc > 4) {
+        crossProb = atof(argv[4]);
     }
-    if (argc > 6) {
-        crossRate = atof(argv[6]);
+    if (argc > 5) {
+        mutProb = atof(argv[4]);
     }
 
     // Create a field of checks.
     field = (cell_t *) malloc(fieldSize * fieldSize * sizeof(cell_t));
-    checks = (CUDAPathGenome::_Point2D *) malloc(checksNumber * sizeof(CUDAPathGenome::_Point2D));
-    cudaMalloc(&d_checks, checksNumber * sizeof(CUDAPathGenome::_Point2D));
+    checks = (Point2D *) malloc(CHECKS_NUM * sizeof(Point2D));
 
     for (unsigned int i = 0; i < fieldSize * fieldSize; i++) {
         field[i] = EMPTY;
     }
 
     srand(time(NULL));
-    for (unsigned int i = 0; i < checksNumber; i++) {
+    for (unsigned int i = 0; i < CHECKS_NUM; i++) {
         checks[i].x = (rand() % fieldSize);
         checks[i].y = (rand() % fieldSize);
-        checks[i].id = i;
+        // checks[i].id = i;
         field[IDX(checks[i].x, checks[i].y, fieldSize)] = true;
     }
 
-    dump(field, NULL, fieldSize, checksNumber, "field.ppm");
+    dump(field, NULL, fieldSize, CHECKS_NUM, "field.ppm");
 
     printf("Field:\n");
-    for (unsigned int i = 0; i < checksNumber; i++) {
+    for (unsigned int i = 0; i < CHECKS_NUM; i++) {
         printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
     }
 
-    CUDAPopulation *population = new CUDAPopulation(popSize, genNumber);
+
+
+    const size_t size = popSize * sizeof(Individual);
+
+    dim3 members(popSize / famNumber);
+    dim3 families(famNumber);
+    size_t familySize = members.x * sizeof(Individual);
+    size_t intArraySize = members.x * sizeof(int);
+    size_t sharedMemSize = 2 * familySize + intArraySize;
+    printf("total shared mem / block:\t%zuB\n", sharedMemSize);
+    printf("family size:\t\t\t%zuB\n", familySize);
+    printf("int array size:\t\t\t%zuB\n", intArraySize);
+
+    // Create the host population.
+    population = (Individual *) malloc(size);
+
+    // Create the device populations.
+    cudaMalloc(&d_population, size);
+
+    // Initialize the population.
+    initialize(population, popSize, checks, CHECKS_NUM);
+
+    // Copy the host population to the device.
+    cudaMemcpy(d_population, population, size, cudaMemcpyHostToDevice);
 
 
 
-    // Allocate the population on the device.
-    CUDAPopulation *d_pop;
-    cudaMalloc(&d_pop, sizeof(CUDAPopulation));
-    cudaMemcpy(d_pop, population, sizeof(CUDAPopulation), cudaMemcpyHostToDevice);
-
-    CUDAGenome **d_individuals;
-    CUDAGenome **d_offspring;
-    cudaMalloc(&d_individuals, popSize * sizeof(CUDAGenome *));
-    cudaMalloc(&d_offspring, popSize * sizeof(CUDAGenome *));
-
-    cudaMemcpy(&(d_pop->individuals), &d_individuals, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
-    cudaMemcpy(&(d_pop->offspring), &d_offspring, sizeof(CUDAGenome **), cudaMemcpyHostToDevice);
 
 
 
-    // Copy the checks on the device.
-    cudaMemcpy(d_checks, checks, checksNumber * sizeof(CUDAPathGenome::_Point2D), cudaMemcpyHostToDevice);
+    // ***Execution.***
+    printf("Execution:\n");
+    startTime = hpc_gettime();
 
-
-
-    dim3 d_popSize(popSize);
-    dim3 d_checksNum(checksNumber);
-    createCUDAPathGenomePopulation<<<d_popSize, 1>>>(d_pop, d_checks, checksNumber);
-    cudaCheckError();
+    evolve<<<families, members, sharedMemSize>>>(d_population, genNumber, crossProb, mutProb);
     cudaDeviceSynchronize();
 
-    printf("\nExecution:\n");
-    startTime = hpc_gettime();
-    for (unsigned int i = 0; i < genNumber; i++) {
-        printf("generation:%u\n", i);
-        evaluate<<<d_popSize, d_checksNum, checksNumber * sizeof(float)>>>(d_pop);
-        cudaCheckError();
-        cudaDeviceSynchronize();
-        sort<<<1, d_popSize>>>(d_pop);
-        cudaCheckError();
-        cudaDeviceSynchronize();
-        step<<<d_popSize, d_checksNum>>>(d_pop);
-        cudaCheckError();
-        cudaDeviceSynchronize();
-    }
     endTime = hpc_gettime();
-    printf("Execution time (s):%f\n\n", endTime - startTime);
+    printf("Execution time: %fs\n\n", endTime - startTime);
 
 
 
 
-    char *d_string;
-    cudaMalloc(&d_string, checksNumber * POINT_SIZE);
 
-    outputBest<<<1, d_checksNum>>>(d_pop, d_string);
+    // Copy the device population back to the host.
+    cudaMemcpy(population, d_population, size, cudaMemcpyDeviceToHost);
 
-    char *string = (char *) malloc(checksNumber * POINT_SIZE);
-    cudaMemcpy(string, d_string, checksNumber * POINT_SIZE, cudaMemcpyDeviceToHost);
-    for (unsigned int i = 0; i < checksNumber; i++) {
-        memcpy(&(checks[i].x), &(string[i * POINT_SIZE]), COORD_SIZE);
-        memcpy(&(checks[i].y), &(string[i * POINT_SIZE + COORD_SIZE]), COORD_SIZE);
-        printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
+    for (int i = 0; i < famNumber; i++) {
+        char fileName[255];
+        sprintf(fileName, "BestOfFam%d.ppm", i);
+        dump(field, population[i * members.x].path, fieldSize, CHECKS_NUM, fileName);
+        printf("Family %d best score %f\n", i, population[i * members.x].score);
     }
-    dump(field, checks, fieldSize, checksNumber, "final.ppm");
 
 
-    free(field);
-    cudaFree(d_pop);
 
+
+    free(population);
+    cudaFree(d_population);
     return 0;
 }

@@ -9,7 +9,6 @@
 #define CHECKS_NUM 15
 #define MUTATION_PROB 0.001
 #define CROSS_PROB 0.5
-#define MIGRATORS_NUM 2
 
 #define cudaCheckError() {                                                                                  \
             cudaError_t e = cudaGetLastError();                                                             \

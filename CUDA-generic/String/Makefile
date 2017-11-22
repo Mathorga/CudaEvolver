@@ -7,20 +7,12 @@ BIN_DIR			=./bin
 
 RM				=rm -rf
 
-all: default
-
-default: Test
+all: StringTest
 
 %.o : %.cu
 	$(NVCOMP) $(NVCOMP_FLAGS) -c $<
 
-Test: Test.o try.o CUDAPopulation.o CUDAPathGenome.o
-	$(NVCOMP) $(NVLINK_FLAGS) $^ -o $(BIN_DIR)/$@ -lm $(NVCOMP_LIBS)
-
-PathTest: PathTest.o PathGenome.o try.o CUDAPopulation.o CUDAPathGenome.o
-	$(NVCOMP) $(NVLINK_FLAGS) $^ -o $(BIN_DIR)/$@ -lm $(NVCOMP_LIBS)
-
-PathTestDeepCopy: PathTest.o PathGenomeDeepCopy.o
+StringTest: StringTest.o
 	$(NVCOMP) $(NVLINK_FLAGS) $^ -o $(BIN_DIR)/$@ -lm $(NVCOMP_LIBS)
 
 clean:
