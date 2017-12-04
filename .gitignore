@@ -8,6 +8,8 @@
 /*/*.ppm
 /*/*.log
 /*/*.out
+*.odt
+*.odt#
 
 /*/core
 /*/bin/*
