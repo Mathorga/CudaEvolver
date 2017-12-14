@@ -8,9 +8,8 @@
 /*/*.ppm
 /*/*.log
 /*/*.out
-*.odt
-*.odt#
 
+Relazione/*
 /*/core
 /*/bin/*
 /*/titan/*

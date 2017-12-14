@@ -31,9 +31,7 @@ void PathGenome::initialize() {
     _Point2D *checksCopy = (_Point2D *) malloc((checksNumber + 1) * sizeof(_Point2D));
     for (unsigned int i = 0; i < checksNumber; i++) {
         checksCopy[i] = checks[i];
-        // printf("x:%d\ty:%d\n", checks[i].x, checks[i].y);
     }
-    // printf("Created a copy of checks\n");
 
     // Randomly initialize path;
     for (unsigned int i = 0; i < checksNumber; i++) {
@@ -81,7 +79,6 @@ void PathGenome::crossover(Genome *partner, Genome **offspring) {
                 }
             }
             if (insert) {
-                // printf("Inserting index %u to index %u\n", j, i);
                 child->path[i] = mate->path[j];
                 i++;
             }
@@ -93,9 +90,7 @@ void PathGenome::mutate(float mutRate) {
     _Point2D *tmp = (_Point2D *) malloc(checksNumber * sizeof(_Point2D));
 
     for (unsigned int i = 0; i < checksNumber; i++) {
-        // printf("%f out of %f\n", ((float) rand()) / (RAND_MAX + 1.0), mutRate);
         if (((float) rand()) / (RAND_MAX + 1.0) <= mutRate) {
-            // printf("%f\n", ((float) rand()) / (RAND_MAX + 1.0));
             int firstIndex = i;
             int secondIndex = rand() % (checksNumber - 1);
 
