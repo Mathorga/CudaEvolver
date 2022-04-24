@@ -1,6 +1,13 @@
 NVCOMP			=nvcc
-NVCOMP_FLAGS	=-std=c++11 -arch=sm_35 -g -G -use_fast_math
-NVLINK_FLAGS	=-arch=sm_35
+
+ifdef CUDA_ARCH
+CUDA_ARCH_FLAG=-arch=$(CUDA_ARCH)
+else
+CUDA_ARCH_FLAG=
+endif
+
+NVCOMP_FLAGS	=-std=c++11 $(CUDA_ARCH_FLAG) -g -G -use_fast_math
+NVLINK_FLAGS	=$(CUDA_ARCH_FLAG)
 NVCOMP_LIBS		=-lstdc++
 
 BIN_DIR			=./bin

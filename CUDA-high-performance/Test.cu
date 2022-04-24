@@ -397,6 +397,7 @@ int main(int argc, char const *argv[]) {
 
     // Create the device populations.
     cudaMalloc(&d_population, size);
+    cudaCheckError();
 
     // Initialize the population.
     initialize(population, popSize, checks, CHECKS_NUM);
